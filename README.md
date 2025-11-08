@@ -22,6 +22,7 @@ docker-compose up -d --build
 3. **Access the application**
 - Frontend: http://localhost
 - Backend API: http://localhost:5000/api
+- Change IP in compose file if needed
 
 4. **Stop containers**
 ```bash
