@@ -1,0 +1,71 @@
+.invoice-view {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.invoice-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.invoice-meta-info {
+  display: flex;
+  gap: 30px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meta-item strong {
+  color: #666;
+  font-size: 14px;
+}
+
+.status-select {
+  margin-left: 5px;
+  padding: 6px 12px;
+  border: 2px solid;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.status-select.paid {
+  background-color: #d4edda;
+  color: #155724;
+  border-color: #c3e6cb;
+}
+
+.status-select.unpaid {
+  background-color: #fff3cd;
+  color: #856404;
+  border-color: #ffeaa7;
+}
+
+.status-select:hover {
+  opacity: 0.9;
+}
+
+.status-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+}
+
+/* Remove old invoice preview styles */
+.invoice-preview,
+.invoice-header,
+.invoice-details-grid,
+.customer-details,
+.invoice-items,
+.invoice-totals {
+  /* These are now handled by InvoicePreview component */
+}

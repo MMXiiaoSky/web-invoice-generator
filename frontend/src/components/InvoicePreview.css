@@ -1,0 +1,23 @@
+.invoice-preview-container {
+  padding: 30px;
+  background: #e0e0e0;
+  overflow: auto;
+  max-height: calc(100vh - 200px);
+}
+
+.invoice-preview-canvas {
+  box-sizing: border-box;
+}
+
+.invoice-preview-error {
+  padding: 40px;
+  text-align: center;
+  background: white;
+  border-radius: 8px;
+  color: #666;
+}
+
+.invoice-preview-error p {
+  margin: 0;
+  font-size: 16px;
+}
