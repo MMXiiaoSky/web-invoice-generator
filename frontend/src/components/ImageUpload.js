@@ -7,14 +7,12 @@ const ImageUpload = ({ currentSrc, onImageUpload, onImageRemove }) => {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
 
-  const API_URL = process.env.REACT_APP_API_URL || '';
-
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     // Validate file size (50MB)
-    const maxSize = 50 * 1024 * 1024; // 50MB in bytes
+    const maxSize = 50 * 1024 * 1024;
     if (file.size > maxSize) {
       setError('File size exceeds 50MB limit');
       return;
@@ -36,7 +34,8 @@ const ImageUpload = ({ currentSrc, onImageUpload, onImageRemove }) => {
       formData.append('image', file);
 
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/api/uploads/image`, formData, {
+      // Use relative path - nginx will proxy
+      const response = await axios.post('/api/uploads/image', formData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -47,9 +46,9 @@ const ImageUpload = ({ currentSrc, onImageUpload, onImageRemove }) => {
         }
       });
 
-      // Call callback with image data
+      // Use relative path for image URL
       onImageUpload({
-        url: `${API_URL}${response.data.url}`,
+        url: response.data.url,
         width: response.data.width,
         height: response.data.height,
         aspectRatio: response.data.aspectRatio,
