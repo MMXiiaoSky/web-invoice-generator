@@ -7,6 +7,9 @@ const ImageUpload = ({ currentSrc, onImageUpload, onImageRemove }) => {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
 
+  // Get backend URL from environment or default
+  const BACKEND_URL = process.env.REACT_APP_API_URL || '';
+
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -34,8 +37,7 @@ const ImageUpload = ({ currentSrc, onImageUpload, onImageRemove }) => {
       formData.append('image', file);
 
       const token = localStorage.getItem('token');
-      // Use relative path - nginx will proxy
-      const response = await axios.post('/api/uploads/image', formData, {
+      const response = await axios.post(`${BACKEND_URL}/api/uploads/image`, formData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
@@ -46,9 +48,11 @@ const ImageUpload = ({ currentSrc, onImageUpload, onImageRemove }) => {
         }
       });
 
-      // Use relative path for image URL
+      // Construct full URL
+      const fullImageUrl = `${BACKEND_URL}${response.data.url}`;
+
       onImageUpload({
-        url: response.data.url,
+        url: fullImageUrl,
         width: response.data.width,
         height: response.data.height,
         aspectRatio: response.data.aspectRatio,
