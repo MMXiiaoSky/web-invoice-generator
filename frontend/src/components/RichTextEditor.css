@@ -53,55 +53,27 @@
   margin: 0 5px;
 }
 
-/* Word-like Font Size Selector */
-.font-size-group {
-  position: relative;
-  display: flex;
-  align-items: center;
+/* New Datalist Font Size Selector */
+.font-size-input-datalist {
+  width: 70px;
+  height: 32px;
   border: 1px solid #ddd;
   border-radius: 3px;
-  background: white;
-  height: 32px;
-}
-
-.font-size-input {
-  width: 45px;
-  height: 30px;
-  border: none;
-  padding-left: 8px;
+  padding: 0 8px;
   font-size: 14px;
-  background: transparent;
-  -moz-appearance: textfield; /* Firefox */
+  background-color: white;
+  transition: border-color 0.2s ease;
 }
-.font-size-input:focus {
+
+.font-size-input-datalist:hover {
+  border-color: #2196F3;
+}
+
+.font-size-input-datalist:focus {
   outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
 }
-.font-size-input::-webkit-outer-spin-button,
-.font-size-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.font-size-select {
-  height: 30px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  padding-right: 20px; /* Space for the arrow */
-}
-.font-size-group::after {
-  content: '▼';
-  font-size: 10px;
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-}
-
 
 .placeholder-dropdown {
   position: relative;
