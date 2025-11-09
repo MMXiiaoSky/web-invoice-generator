@@ -1,41 +1,66 @@
 import React, { useRef, useEffect, useState } from 'react';
 import './RichTextEditor.css';
 
-const RichTextEditor = ({ content, onChange, placeholders }) => {
+const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSpacingChange }) => {
   const editorRef = useRef(null);
   const toolbarRef = useRef(null);
   const [isToolbarVisible, setToolbarVisible] = useState(false);
   const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
   const [currentFontSize, setCurrentFontSize] = useState('12');
+  const selectionRef = useRef(null);
 
   useEffect(() => {
     if (editorRef.current && content !== editorRef.current.innerHTML) {
       editorRef.current.innerHTML = content || '';
     }
   }, [content]);
-
-  const handleInput = () => {
+  
+  useEffect(() => {
     if (editorRef.current) {
-      onChange(editorRef.current.innerHTML);
+        editorRef.current.style.lineHeight = lineSpacing || 1.4;
+    }
+  }, [lineSpacing]);
+
+  const saveSelection = () => {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      selectionRef.current = selection.getRangeAt(0).cloneRange();
     }
   };
 
-  // --- Toolbar Positioning Logic ---
+  const restoreSelection = () => {
+    if (selectionRef.current) {
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(selectionRef.current);
+    }
+  };
+
   const handleSelectionChange = () => {
     const selection = window.getSelection();
     if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
-      const rect = range.getBoundingClientRect();
-      
-      // Don't show if selection is outside the editor
       if (!editorRef.current.contains(range.commonAncestorContainer)) {
         setToolbarVisible(false);
         return;
       }
 
+      const rect = range.getBoundingClientRect();
+      const editorRect = editorRef.current.getBoundingClientRect();
+
+      let left = rect.left + window.scrollX + rect.width / 2;
+      
+      // Prevent toolbar from going off-screen
+      if (toolbarRef.current) {
+        const toolbarWidth = toolbarRef.current.offsetWidth;
+        const minLeft = toolbarWidth / 2 + 10;
+        const maxLeft = window.innerWidth - toolbarWidth / 2 - 10;
+        left = Math.max(minLeft, Math.min(left, maxLeft));
+      }
+
       setToolbarPosition({
-        top: rect.top - 50, // Position above the selection
-        left: rect.left + (rect.width / 2),
+        top: rect.top + window.scrollY - 50,
+        left: left,
       });
       setToolbarVisible(true);
       updateCurrentFontSize(selection);
@@ -43,7 +68,7 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
       setToolbarVisible(false);
     }
   };
-
+  
   const updateCurrentFontSize = (selection) => {
     let parent = selection.getRangeAt(0).commonAncestorContainer;
     parent = parent.nodeType === 1 ? parent : parent.parentNode;
@@ -56,24 +81,29 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
       }
       parent = parent.parentNode;
     }
-    setCurrentFontSize(size || '12'); // Default to 12 if not found
+    setCurrentFontSize(size || '12');
   };
-  
-  // --- Formatting Commands ---
+
+  const handleInput = () => {
+    if (editorRef.current) onChange(editorRef.current.innerHTML);
+  };
+
   const formatText = (command, value = null) => {
+    restoreSelection();
     document.execCommand(command, false, value);
     handleInput();
+    editorRef.current.focus();
   };
-  
+
   const changeFontSize = (size) => {
     const newSize = parseInt(size);
     if (isNaN(newSize) || newSize < 1) return;
-
-    setCurrentFontSize(String(newSize));
+    
+    restoreSelection();
+    
     const sizeInPx = `${newSize}px`;
-
     document.execCommand('styleWithCSS', false, true);
-    document.execCommand('fontSize', false, '1'); // Dummy value
+    document.execCommand('fontSize', false, '1');
     const fontElements = editorRef.current.getElementsByTagName('font');
     while (fontElements.length > 0) {
       const span = document.createElement('span');
@@ -81,16 +111,10 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
       span.innerHTML = fontElements[0].innerHTML;
       fontElements[0].parentNode.replaceChild(span, fontElements[0]);
     }
-    
     handleInput();
   };
 
-  const insertPlaceholder = (placeholder) => {
-    document.execCommand('insertText', false, placeholder);
-    handleInput();
-  };
-
-  const preventDefault = (e) => e.preventDefault();
+  const handleToolbarMouseDown = (e) => e.preventDefault();
 
   return (
     <div className="rich-text-editor-container">
@@ -99,7 +123,7 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
           className="floating-toolbar"
           ref={toolbarRef}
           style={{ top: `${toolbarPosition.top}px`, left: `${toolbarPosition.left}px` }}
-          onMouseDown={preventDefault}
+          onMouseDown={handleToolbarMouseDown}
         >
           <div className="toolbar-group">
             <button type="button" onClick={() => formatText('bold')} className="toolbar-btn" title="Bold"><strong>B</strong></button>
@@ -112,10 +136,9 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
               list="font-sizes-floating"
               type="text"
               value={currentFontSize}
-              onChange={(e) => {
-                setCurrentFontSize(e.target.value);
-                changeFontSize(e.target.value);
-              }}
+              onFocus={saveSelection}
+              onChange={(e) => setCurrentFontSize(e.target.value)}
+              onBlur={(e) => changeFontSize(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -129,14 +152,14 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
               {[8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48].map(size => <option key={size} value={size} />)}
             </datalist>
           </div>
-          {/* Add other buttons like placeholders if needed */}
         </div>
       )}
-
+      
       <div 
         ref={editorRef} 
         contentEditable 
         onInput={handleInput} 
+        onBlur={saveSelection}
         onMouseUp={handleSelectionChange}
         onKeyUp={handleSelectionChange}
         className="editor-content" 
