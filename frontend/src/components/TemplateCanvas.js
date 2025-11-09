@@ -47,7 +47,9 @@ const TemplateCanvas = ({ elements, onElementUpdate, selectedElement, onSelectEl
         Object.keys(sampleData).forEach(placeholder => {
           displayHTML = displayHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), sampleData[placeholder]);
         });
-        return <div style={{ pointerEvents: 'none', userSelect: 'none', whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: displayHTML }} />;
+        // Wrap the final HTML in a div with the correct line-height
+        const styledCanvasHTML = `<div style="line-height: ${element.lineHeight || 1.4};">${displayHTML}</div>`;
+        return <div style={{ pointerEvents: 'none', userSelect: 'none', whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: styledCanvasHTML }} />;
       
       case 'customerBlock':
         return (
@@ -70,23 +72,23 @@ const TemplateCanvas = ({ elements, onElementUpdate, selectedElement, onSelectEl
       
       case 'itemsTable':
         return (
-          <table style={{ width: '100%', fontSize: `${element.fontSize}px`, pointerEvents: 'none', userSelect: 'none' }}>
+          <table style={{ width: '100%', fontSize: `${element.fontSize}px`, pointerEvents: 'none', userSelect: 'none', border: 'none', background: 'transparent' }}>
             <thead>
-              <tr style={{ background: 'transparent' }}>
-                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', width: '40px', background: 'transparent' }}>No.</th>
-                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', background: 'transparent' }}>Description</th>
-                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', background: 'transparent' }}>Price (RM)</th>
-                <th style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '80px', background: 'transparent' }}>Qty</th>
-                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', background: 'transparent' }}>Total (RM)</th>
+              <tr style={{ background: 'transparent', border: 'none' }}>
+                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', width: '40px', background: 'transparent', border: 'none' }}>No.</th>
+                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', background: 'transparent', border: 'none' }}>Description</th>
+                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', background: 'transparent', border: 'none' }}>Price (RM)</th>
+                <th style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '80px', background: 'transparent', border: 'none' }}>Qty</th>
+                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', background: 'transparent', border: 'none' }}>Total (RM)</th>
               </tr>
             </thead>
             <tbody>
-              <tr style={{ background: 'transparent' }}>
-                <td style={{ padding: '8px', textAlign: 'left', background: 'transparent', verticalAlign: 'top' }}>1</td>
-                <td style={{ padding: '8px', textAlign: 'left', background: 'transparent', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordWrap: 'break-word', lineHeight: '1.4' }}>Sample Item<br/>- Multi-line example</td>
-                <td style={{ padding: '8px', textAlign: 'right', background: 'transparent', verticalAlign: 'top' }}>RM 100.00</td>
-                <td style={{ padding: '8px', textAlign: 'center', background: 'transparent', verticalAlign: 'top' }}>2</td>
-                <td style={{ padding: '8px', textAlign: 'right', background: 'transparent', verticalAlign: 'top' }}>RM 200.00</td>
+              <tr style={{ background: 'transparent', border: 'none' }}>
+                <td style={{ padding: '8px', textAlign: 'left', background: 'transparent', verticalAlign: 'top', border: 'none' }}>1</td>
+                <td style={{ padding: '8px', textAlign: 'left', background: 'transparent', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordWrap: 'break-word', lineHeight: '1.4', border: 'none' }}>Sample Item<br/>- Multi-line example</td>
+                <td style={{ padding: '8px', textAlign: 'right', background: 'transparent', verticalAlign: 'top', border: 'none' }}>RM 100.00</td>
+                <td style={{ padding: '8px', textAlign: 'center', background: 'transparent', verticalAlign: 'top', border: 'none' }}>2</td>
+                <td style={{ padding: '8px', textAlign: 'right', background: 'transparent', verticalAlign: 'top', border: 'none' }}>RM 200.00</td>
               </tr>
             </tbody>
           </table>
@@ -111,55 +113,55 @@ const TemplateCanvas = ({ elements, onElementUpdate, selectedElement, onSelectEl
   };
 
   const renderElement = (element) => {
-  const isSelected = selectedElement?.id === element.id;
-  const maxWidth = A4_WIDTH - element.x;
-  const maxHeight = A4_HEIGHT - element.y;
-  const lockAspectRatio = element.type === 'image' && element.aspectRatio;
-  
-  return (
-    <Draggable
-      key={element.id}
-      position={{ x: element.x, y: element.y }}
-      onStop={(e, data) => handleDrag(element.id, e, data)}
-      bounds="parent"
-      handle=".drag-handle"
-    >
-      <div 
-        className={`element-wrapper ${isSelected ? 'selected' : ''}`}
-        style={{
-          position: 'absolute',
-          width: element.width,
-          height: element.height,
-        }}
-        onClick={(e) => handleClick(e, element)}
+    const isSelected = selectedElement?.id === element.id;
+    const maxWidth = A4_WIDTH - element.x;
+    const maxHeight = A4_HEIGHT - element.y;
+    const lockAspectRatio = element.type === 'image' && element.aspectRatio;
+    
+    return (
+      <Draggable
+        key={element.id}
+        position={{ x: element.x, y: element.y }}
+        onStop={(e, data) => handleDrag(element.id, e, data)}
+        bounds="parent"
+        handle=".drag-handle"
       >
-        <ResizableBox
-          width={element.width}
-          height={element.height}
-          onResize={(e, data) => handleResize(element.id, e, data)}
-          minConstraints={[50, 20]}
-          maxConstraints={[maxWidth, maxHeight]}
-          resizeHandles={['se', 'sw', 'ne', 'nw', 'e', 'w', 'n', 's']}
-          lockAspectRatio={lockAspectRatio}
+        <div 
+          className={`element-wrapper ${isSelected ? 'selected' : ''}`}
+          style={{
+            position: 'absolute',
+            width: element.width,
+            height: element.height,
+          }}
+          onClick={(e) => handleClick(e, element)}
         >
-          <div className="element-content drag-handle"
-            style={{
-              padding: (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px',
-              height: '100%',
-              width: '100%',
-              overflow: 'hidden',
-              cursor: 'move',
-              lineHeight: element.lineHeight || 1.4 // ✅ APPLY LINE HEIGHT
-            }}
+          <ResizableBox
+            width={element.width}
+            height={element.height}
+            onResize={(e, data) => handleResize(element.id, e, data)}
+            minConstraints={[50, 20]}
+            maxConstraints={[maxWidth, maxHeight]}
+            resizeHandles={['se', 'sw', 'ne', 'nw', 'e', 'w', 'n', 's']}
+            lockAspectRatio={lockAspectRatio}
           >
-            {renderElementContent(element)}
-          </div>
-        </ResizableBox>
-        {isSelected && <div className="selection-indicator">✓ Selected</div>}
-      </div>
-    </Draggable>
-  );
-};
+            <div className="element-content drag-handle"
+              style={{
+                padding: (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px',
+                height: '100%',
+                width: '100%',
+                overflow: 'hidden',
+                cursor: 'move',
+                lineHeight: element.lineHeight || 1.4 // Apply line height here
+              }}
+            >
+              {renderElementContent(element)}
+            </div>
+          </ResizableBox>
+          {isSelected && <div className="selection-indicator">✓ Selected</div>}
+        </div>
+      </Draggable>
+    );
+  };
 
   return (
     <div className="canvas-container">
