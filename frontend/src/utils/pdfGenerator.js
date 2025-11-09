@@ -223,28 +223,16 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
     el.style.textDecoration = element.textDecoration || 'none';
     el.style.padding = (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px';
     el.style.overflow = 'hidden';
-    el.style.lineHeight = element.lineHeight || 1.4; // ✅ APPLY LINE HEIGHT
+    el.style.lineHeight = element.lineHeight || 1.4; // Apply line height here
 
     switch (element.type) {
       case 'text':
-        // Parse placeholders with actual invoice data
         let pdfHTML = element.content || '';
-        
-        // Format currency
-        const formatCurrency = (amount) => {
-          return `RM ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-        };
-        
-        // Format date
+        const formatCurrency = (amount) => `RM ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
         const formatDate = (dateString) => {
           const date = new Date(dateString);
-          const day = String(date.getDate()).padStart(2, '0');
-          const month = String(date.getMonth() + 1).padStart(2, '0');
-          const year = date.getFullYear();
-          return `${day}/${month}/${year}`;
+          return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
         };
-        
-        // Replace placeholders with actual data
         const placeholderData = {
           '{company_name}': invoiceData.company_name || '',
           '{address}': invoiceData.address || '',
@@ -255,37 +243,22 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
           '{subtotal}': formatCurrency(invoiceData.subtotal),
           '{total}': formatCurrency(invoiceData.total)
         };
-        
         Object.keys(placeholderData).forEach(placeholder => {
           pdfHTML = pdfHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), placeholderData[placeholder]);
         });
-        
-        el.innerHTML = pdfHTML;
+        const styledPdfHTML = `<div style="line-height: ${element.lineHeight || 1.4};">${pdfHTML}</div>`;
+        el.innerHTML = styledPdfHTML;
         el.style.whiteSpace = 'pre-wrap';
         break;
 
       case 'customerBlock':
-        el.innerHTML = `
-          <div>
-            <strong>Bill To:</strong><br/>
-            <strong>${invoiceData.company_name}</strong><br/>
-            ${invoiceData.address || ''}<br/><br/>
-            Attn: ${invoiceData.attention || ''}<br/>
-            Tel: ${invoiceData.telephone || ''}
-          </div>
-        `;
+        el.innerHTML = `<div><strong>Bill To:</strong><br/><strong>${invoiceData.company_name}</strong><br/>${invoiceData.address || ''}<br/><br/>Attn: ${invoiceData.attention || ''}<br/>Tel: ${invoiceData.telephone || ''}</div>`;
         break;
 
       case 'invoiceInfo':
         const invDate = new Date(invoiceData.invoice_date);
         const invFormattedDate = `${String(invDate.getDate()).padStart(2, '0')}/${String(invDate.getMonth() + 1).padStart(2, '0')}/${invDate.getFullYear()}`;
-        
-        el.innerHTML = `
-          <div>
-            <strong>Invoice No.:</strong> ${invoiceData.invoice_number}<br/>
-            <strong>Date:</strong> ${invFormattedDate}
-          </div>
-        `;
+        el.innerHTML = `<div><strong>Invoice No.:</strong> ${invoiceData.invoice_number}<br/><strong>Date:</strong> ${invFormattedDate}</div>`;
         break;
 
       case 'itemsTable':
@@ -295,24 +268,18 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
 
       case 'totalsBlock':
         if (isLastPage) {
-          el.innerHTML = `
-            <div style="text-align: right;">
-              <strong style="font-size: ${element.fontSize + 4}px;">Total: RM ${invoiceData.total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</strong>
-            </div>
-          `;
+          el.innerHTML = `<div style="text-align: right;"><strong style="font-size: ${element.fontSize + 4}px;">Total: RM ${invoiceData.total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</strong></div>`;
         }
         break;
 
       case 'remarksBlock':
         if (isLastPage) {
           let remarksHTML = element.content || '';
-          
           const formatCurrencyRemarks = (amount) => `RM ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
           const formatDateRemarks = (dateString) => {
             const date = new Date(dateString);
             return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
           };
-          
           const remarksPlaceholderData = {
             '{company_name}': invoiceData.company_name || '',
             '{address}': invoiceData.address || '',
@@ -323,12 +290,11 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
             '{subtotal}': formatCurrencyRemarks(invoiceData.subtotal),
             '{total}': formatCurrencyRemarks(invoiceData.total)
           };
-          
           Object.keys(remarksPlaceholderData).forEach(placeholder => {
             remarksHTML = remarksHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), remarksPlaceholderData[placeholder]);
           });
-          
-          el.innerHTML = remarksHTML;
+          const styledRemarksHTML = `<div style="line-height: ${element.lineHeight || 1.4};">${remarksHTML}</div>`;
+          el.innerHTML = styledRemarksHTML;
           el.style.whiteSpace = 'pre-wrap';
         }
         break;
