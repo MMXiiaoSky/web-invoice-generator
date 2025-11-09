@@ -181,36 +181,32 @@ export const generateInvoicePDF = async (invoiceData, templateData) => {
  * Render template elements to container - EXACT positioning
  */
 const renderTemplateElements = (container, templateData, invoiceData, items, isFirstPage, isLastPage, startIndex = 0) => {
-  // Add a global CSS reset to the container
+  // A powerful CSS reset for the PDF rendering context
   const style = document.createElement('style');
   style.innerHTML = `
     * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-sizing: border-box !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
     }
     table {
-      border-collapse: collapse;
-      border-spacing: 0;
+      border-collapse: collapse !important;
+      border-spacing: 0 !important;
+    }
+    div, p {
+      margin: 0 !important;
+      padding: 0 !important;
     }
   `;
   container.appendChild(style);
 
   templateData.elements.forEach(element => {
-    // Skip totals block if not last page
-    if (element.type === 'totalsBlock' && !isLastPage) {
-      return;
-    }
-    
-    // Skip remarks block if not last page
-    if (element.type === 'remarksBlock' && !isLastPage) {
-      return;
-    }
-    
+    if (element.type === 'totalsBlock' && !isLastPage) return;
+    if (element.type === 'remarksBlock' && !isLastPage) return;
+
     const el = document.createElement('div');
-    
-    // EXACT positioning - match template builder
+
     el.style.position = 'absolute';
     el.style.left = `${element.x}px`;
     el.style.top = `${element.y}px`;
@@ -223,11 +219,12 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
     el.style.textDecoration = element.textDecoration || 'none';
     el.style.padding = (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px';
     el.style.overflow = 'hidden';
-    el.style.lineHeight = element.lineHeight || 1.4; // Apply line height here
+    el.style.lineHeight = element.lineHeight || 1.4;
 
     switch (element.type) {
       case 'text':
-        let pdfHTML = element.content || '';
+      case 'remarksBlock': {
+        let htmlContent = element.content || '';
         const formatCurrency = (amount) => `RM ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
         const formatDate = (dateString) => {
           const date = new Date(dateString);
@@ -244,22 +241,23 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
           '{total}': formatCurrency(invoiceData.total)
         };
         Object.keys(placeholderData).forEach(placeholder => {
-          pdfHTML = pdfHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), placeholderData[placeholder]);
+          htmlContent = htmlContent.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), placeholderData[placeholder]);
         });
-        const styledPdfHTML = `<div style="line-height: ${element.lineHeight || 1.4};">${pdfHTML}</div>`;
-        el.innerHTML = styledPdfHTML;
+        el.innerHTML = htmlContent;
         el.style.whiteSpace = 'pre-wrap';
         break;
+      }
 
       case 'customerBlock':
         el.innerHTML = `<div><strong>Bill To:</strong><br/><strong>${invoiceData.company_name}</strong><br/>${invoiceData.address || ''}<br/><br/>Attn: ${invoiceData.attention || ''}<br/>Tel: ${invoiceData.telephone || ''}</div>`;
         break;
 
-      case 'invoiceInfo':
+      case 'invoiceInfo': {
         const invDate = new Date(invoiceData.invoice_date);
         const invFormattedDate = `${String(invDate.getDate()).padStart(2, '0')}/${String(invDate.getMonth() + 1).padStart(2, '0')}/${invDate.getFullYear()}`;
         el.innerHTML = `<div><strong>Invoice No.:</strong> ${invoiceData.invoice_number}<br/><strong>Date:</strong> ${invFormattedDate}</div>`;
         break;
+      }
 
       case 'itemsTable':
         el.innerHTML = createItemsTable(items, element.fontSize, startIndex);
@@ -272,35 +270,7 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
         }
         break;
 
-      case 'remarksBlock':
-        if (isLastPage) {
-          let remarksHTML = element.content || '';
-          const formatCurrencyRemarks = (amount) => `RM ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-          const formatDateRemarks = (dateString) => {
-            const date = new Date(dateString);
-            return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-          };
-          const remarksPlaceholderData = {
-            '{company_name}': invoiceData.company_name || '',
-            '{address}': invoiceData.address || '',
-            '{attention}': invoiceData.attention || '',
-            '{telephone}': invoiceData.telephone || '',
-            '{invoice_number}': invoiceData.invoice_number || '',
-            '{invoice_date}': formatDateRemarks(invoiceData.invoice_date),
-            '{subtotal}': formatCurrencyRemarks(invoiceData.subtotal),
-            '{total}': formatCurrencyRemarks(invoiceData.total)
-          };
-          Object.keys(remarksPlaceholderData).forEach(placeholder => {
-            remarksHTML = remarksHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), remarksPlaceholderData[placeholder]);
-          });
-          const styledRemarksHTML = `<div style="line-height: ${element.lineHeight || 1.4};">${remarksHTML}</div>`;
-          el.innerHTML = styledRemarksHTML;
-          el.style.whiteSpace = 'pre-wrap';
-        }
-        break;
-
       case 'image':
-        el.style.padding = '0';
         if (element.src) {
           const img = document.createElement('img');
           img.src = element.src;
@@ -321,7 +291,6 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
       default:
         break;
     }
-
     container.appendChild(el);
   });
 };
