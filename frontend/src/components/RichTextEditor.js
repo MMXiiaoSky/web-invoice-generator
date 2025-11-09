@@ -15,13 +15,17 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
   // Update toolbar state based on cursor position
   const updateToolbar = () => {
     const selection = window.getSelection();
+    if (!editorRef.current || !editorRef.current.contains(selection.anchorNode)) {
+      // Selection is not in the editor
+      return;
+    }
+    
     if (selection.rangeCount > 0) {
       let parent = selection.getRangeAt(0).commonAncestorContainer;
       if (parent.nodeType !== 1) {
         parent = parent.parentNode;
       }
       
-      // Find the font size from the current or parent element
       let size = '12'; // Default
       while (parent && parent !== editorRef.current) {
         if (parent.style && parent.style.fontSize) {
@@ -47,18 +51,18 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
   };
 
   const changeFontSize = (size) => {
-    const sizeInPx = `${size}px`;
-    setCurrentFontSize(size);
+    const newSize = parseInt(size);
+    if (isNaN(newSize) || newSize < 1) return; // Ignore invalid input
+
+    const sizeInPx = `${newSize}px`;
+    setCurrentFontSize(String(newSize));
 
     const selection = window.getSelection();
     if (selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed) {
-      // Restore the selection before executing the command
       editorRef.current.focus();
-      const range = selection.getRangeAt(0);
 
-      // Wrap the selection in a span with the new font size
       document.execCommand('styleWithCSS', false, true);
-      document.execCommand('fontSize', false, '1'); // Dummy value
+      document.execCommand('fontSize', false, '1'); // Dummy value to create <font> tags
       const fontElements = editorRef.current.getElementsByTagName('font');
       while (fontElements.length > 0) {
         const span = document.createElement('span');
@@ -70,7 +74,6 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
     
     handleInput();
   };
-
 
   const insertPlaceholder = (placeholder) => {
     const selection = window.getSelection();
@@ -102,22 +105,25 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
 
         <div className="toolbar-group font-size-group">
           <input
-            type="number"
+            list="font-sizes"
+            type="text"
             value={currentFontSize}
-            onChange={(e) => setCurrentFontSize(e.target.value)}
-            onBlur={(e) => changeFontSize(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); changeFontSize(e.target.value); } }}
-            className="font-size-input"
-            min="1"
-          />
-          <select 
-            onChange={(e) => changeFontSize(e.target.value)} 
-            value={currentFontSize} 
-            className="font-size-select" 
+            onChange={(e) => {
+              setCurrentFontSize(e.target.value);
+              changeFontSize(e.target.value);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                changeFontSize(e.target.value);
+              }
+            }}
+            className="font-size-input-datalist"
             title="Font Size"
-          >
-            {[8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48].map(size => <option key={size} value={size}>{size}</option>)}
-          </select>
+          />
+          <datalist id="font-sizes">
+            {[8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48].map(size => <option key={size} value={size} />)}
+          </datalist>
         </div>
 
         <div className="toolbar-separator"></div>
