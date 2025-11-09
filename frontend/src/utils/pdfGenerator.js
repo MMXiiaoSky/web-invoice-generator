@@ -181,6 +181,22 @@ export const generateInvoicePDF = async (invoiceData, templateData) => {
  * Render template elements to container - EXACT positioning
  */
 const renderTemplateElements = (container, templateData, invoiceData, items, isFirstPage, isLastPage, startIndex = 0) => {
+  // Add a global CSS reset to the container
+  const style = document.createElement('style');
+  style.innerHTML = `
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    }
+    table {
+      border-collapse: collapse;
+      border-spacing: 0;
+    }
+  `;
+  container.appendChild(style);
+
   templateData.elements.forEach(element => {
     // Skip totals block if not last page
     if (element.type === 'totalsBlock' && !isLastPage) {
@@ -206,9 +222,8 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
     el.style.fontStyle = element.fontStyle || 'normal';
     el.style.textDecoration = element.textDecoration || 'none';
     el.style.padding = '5px';
-    el.style.boxSizing = 'border-box';
     el.style.overflow = 'hidden';
-    el.style.margin = '0';
+    el.style.lineHeight = '1.4'; // Consistent line height
 
     switch (element.type) {
       case 'text':
@@ -250,11 +265,8 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
         break;
 
       case 'customerBlock':
-        const invoiceDate = new Date(invoiceData.invoice_date);
-        const formattedDate = `${String(invoiceDate.getDate()).padStart(2, '0')}/${String(invoiceDate.getMonth() + 1).padStart(2, '0')}/${invoiceDate.getFullYear()}`;
-        
         el.innerHTML = `
-          <div style="line-height: 1.6; margin: 0; padding: 0;">
+          <div>
             <strong>Bill To:</strong><br/>
             <strong>${invoiceData.company_name}</strong><br/>
             ${invoiceData.address || ''}<br/><br/>
@@ -269,7 +281,7 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
         const invFormattedDate = `${String(invDate.getDate()).padStart(2, '0')}/${String(invDate.getMonth() + 1).padStart(2, '0')}/${invDate.getFullYear()}`;
         
         el.innerHTML = `
-          <div style="line-height: 1.6; margin: 0; padding: 0;">
+          <div>
             <strong>Invoice No.:</strong> ${invoiceData.invoice_number}<br/>
             <strong>Date:</strong> ${invFormattedDate}
           </div>
@@ -278,13 +290,13 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
 
       case 'itemsTable':
         el.innerHTML = createItemsTable(items, element.fontSize, startIndex);
+        el.style.padding = '0'; // No padding for table container itself
         break;
 
       case 'totalsBlock':
-        // Only show on last page
         if (isLastPage) {
           el.innerHTML = `
-            <div style="line-height: 1.8; text-align: right; margin: 0; padding: 0;">
+            <div style="text-align: right;">
               <strong style="font-size: ${element.fontSize + 4}px;">Total: RM ${invoiceData.total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</strong>
             </div>
           `;
@@ -292,25 +304,15 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
         break;
 
       case 'remarksBlock':
-        // Only show on last page
         if (isLastPage) {
           let remarksHTML = element.content || '';
           
-          // Format currency
-          const formatCurrencyRemarks = (amount) => {
-            return `RM ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-          };
-          
-          // Format date
+          const formatCurrencyRemarks = (amount) => `RM ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
           const formatDateRemarks = (dateString) => {
             const date = new Date(dateString);
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}/${month}/${year}`;
+            return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
           };
           
-          // Replace placeholders with actual data
           const remarksPlaceholderData = {
             '{company_name}': invoiceData.company_name || '',
             '{address}': invoiceData.address || '',
@@ -332,6 +334,7 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
         break;
 
       case 'image':
+        el.style.padding = '0'; // No padding for image container
         if (element.src) {
           const img = document.createElement('img');
           img.src = element.src;
@@ -339,8 +342,6 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
           img.style.height = '100%';
           img.style.objectFit = 'contain';
           img.style.display = 'block';
-          img.style.margin = '0';
-          img.style.padding = '0';
           el.appendChild(img);
         }
         break;
@@ -348,7 +349,7 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
       case 'line':
         el.style.borderBottom = `${element.thickness || 2}px solid ${element.color || '#000'}`;
         el.style.height = '0';
-        el.style.padding = '0';
+        el.style.padding = '0'; // No padding for lines
         break;
 
       default:
