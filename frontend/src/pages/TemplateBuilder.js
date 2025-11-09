@@ -157,28 +157,44 @@ const TemplateBuilder = () => {
             <div className="toolbar-section">
               <h4>Element Properties</h4>
               
+              {/* --- POSITION --- */}
               <div className="position-inputs">
                 <div className="form-group">
                   <label>X Position</label>
-                  <input type="number" value={Math.round(selectedElement.x)} onChange={(e) => updateElement(selectedElement.id, { x: parseInt(e.target.value) })} className="coord-input" />
+                  <input
+                    type="number"
+                    value={Math.round(selectedElement.x)}
+                    onChange={(e) => updateElement(selectedElement.id, { x: parseInt(e.target.value) })}
+                    className="coord-input"
+                  />
                 </div>
                 <div className="form-group">
                   <label>Y Position</label>
-                  <input type="number" value={Math.round(selectedElement.y)} onChange={(e) => updateElement(selectedElement.id, { y: parseInt(e.target.value) })} className="coord-input" />
+                  <input
+                    type="number"
+                    value={Math.round(selectedElement.y)}
+                    onChange={(e) => updateElement(selectedElement.id, { y: parseInt(e.target.value) })}
+                    className="coord-input"
+                  />
                 </div>
               </div>
 
-              {(selectedElement.type === 'text' || selectedElement.type === 'remarksBlock') ? (
+              {/* --- RICH TEXT EDITOR (for 'text' and 'remarksBlock') --- */}
+              {(selectedElement.type === 'text' || selectedElement.type === 'remarksBlock') && (
                 <div className="form-group">
-                  <label>Rich Text Content</label>
+                  <label>Text Content</label>
                   <RichTextEditor
                     content={selectedElement.content}
                     onChange={(newContent) => updateElement(selectedElement.id, { content: newContent })}
                     placeholders={placeholders}
                   />
+                  <small style={{ color: '#666', fontSize: '11px', marginTop: '5px', display: 'block' }}>
+                    Highlight text to show formatting options.
+                  </small>
                 </div>
-              ) : null}
+              )}
 
+              {/* --- IMAGE UPLOAD --- */}
               {selectedElement.type === 'image' && (
                 <div className="form-group">
                   <label>Upload Image</label>
@@ -199,25 +215,62 @@ const TemplateBuilder = () => {
                 </div>
               )}
 
+              {/* --- FONT SIZE (for non-rich-text blocks) --- */}
               {selectedElement.type !== 'line' && selectedElement.type !== 'image' && selectedElement.type !== 'text' && selectedElement.type !== 'remarksBlock' && (
                 <div className="form-group">
                   <label>Font Size</label>
-                  <input type="number" value={selectedElement.fontSize} onChange={(e) => updateElement(selectedElement.id, { fontSize: parseInt(e.target.value) })} />
+                  <input
+                    type="number"
+                    value={selectedElement.fontSize}
+                    onChange={(e) => updateElement(selectedElement.id, { fontSize: parseInt(e.target.value) })}
+                  />
                 </div>
               )}
 
-              <div className="form-group">
-                <label>Color</label>
-                <input type="color" value={selectedElement.color || '#000000'} onChange={(e) => updateElement(selectedElement.id, { color: e.target.value })} />
-              </div>
+              {/* --- FONT WEIGHT & STYLE (for non-rich-text blocks) --- */}
+              {selectedElement.type !== 'line' && selectedElement.type !== 'image' && selectedElement.type !== 'text' && selectedElement.type !== 'remarksBlock' && (
+                <>
+                  <div className="form-group">
+                    <label>Font Weight</label>
+                    <select value={selectedElement.fontWeight || 'normal'} onChange={(e) => updateElement(selectedElement.id, { fontWeight: e.target.value })}>
+                      <option value="normal">Normal</option>
+                      <option value="bold">Bold</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Font Style</label>
+                    <select value={selectedElement.fontStyle || 'normal'} onChange={(e) => updateElement(selectedElement.id, { fontStyle: e.target.value })}>
+                      <option value="normal">Normal</option>
+                      <option value="italic">Italic</option>
+                    </select>
+                  </div>
+                </>
+              )}
 
-              {(selectedElement.type === 'text' || selectedElement.type === 'remarksBlock' || selectedElement.type === 'customerBlock' || selectedElement.type === 'invoiceInfo' || selectedElement.type === 'totalsBlock') && (
+              {/* --- COLOR (for all text-based and line blocks) --- */}
+              {selectedElement.type !== 'image' && (
+                 <div className="form-group">
+                    <label>Color</label>
+                    <input type="color" value={selectedElement.color || '#000000'} onChange={(e) => updateElement(selectedElement.id, { color: e.target.value })} />
+                 </div>
+              )}
+
+              {/* --- LINE SPACING (for blocks with text) --- */}
+              {(selectedElement.type === 'customerBlock' || selectedElement.type === 'invoiceInfo' || selectedElement.type === 'totalsBlock') && (
                 <div className="form-group">
                   <label>Line Spacing</label>
-                  <input type="number" step="0.1" min="1" max="3" value={selectedElement.lineHeight || 1.4} onChange={(e) => updateElement(selectedElement.id, { lineHeight: parseFloat(e.target.value) })} />
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="1"
+                    max="3"
+                    value={selectedElement.lineHeight || 1.4}
+                    onChange={(e) => updateElement(selectedElement.id, { lineHeight: parseFloat(e.target.value) })}
+                  />
                 </div>
               )}
-
+              
+              {/* --- LINE THICKNESS --- */}
               {selectedElement.type === 'line' && (
                 <div className="form-group">
                   <label>Thickness</label>
@@ -225,6 +278,7 @@ const TemplateBuilder = () => {
                 </div>
               )}
 
+              {/* --- DELETE BUTTON --- */}
               <button onClick={deleteElement} className="btn btn-danger btn-small" style={{ width: '100%', marginTop: '20px' }}>
                 🗑️ Delete Element
               </button>
