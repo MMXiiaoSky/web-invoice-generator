@@ -5,7 +5,9 @@ const InvoicePreview = ({ invoice, templateData }) => {
   const A4_WIDTH = 794;
   const A4_HEIGHT = 1123;
 
-  const formatCurrency = (amount) => `RM ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+  const formatCurrency = (amount) => {
+    return `RM ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+  };
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -17,7 +19,7 @@ const InvoicePreview = ({ invoice, templateData }) => {
 
   const renderElementContent = (element) => {
     switch (element.type) {
-      case 'text': {
+      case 'text':
         let displayHTML = element.content || '';
         const placeholderData = {
           '{company_name}': invoice.company_name || '',
@@ -32,10 +34,9 @@ const InvoicePreview = ({ invoice, templateData }) => {
         Object.keys(placeholderData).forEach(placeholder => {
           displayHTML = displayHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), placeholderData[placeholder]);
         });
-        const styledDisplayHTML = `<div class="rtx-apply" style="line-height: ${element.lineHeight || 1.4};">${displayHTML}</div>`;
+        const styledDisplayHTML = `<div style="line-height: ${element.lineHeight || 1.4};">${displayHTML}</div>`;
         return <div style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: styledDisplayHTML }} />;
-      }
-
+      
       case 'customerBlock':
         return (
           <div>
@@ -46,7 +47,7 @@ const InvoicePreview = ({ invoice, templateData }) => {
             Tel: {invoice.telephone}
           </div>
         );
-
+      
       case 'invoiceInfo':
         return (
           <div>
@@ -54,7 +55,7 @@ const InvoicePreview = ({ invoice, templateData }) => {
             <strong>Date:</strong> {formatDate(invoice.invoice_date)}
           </div>
         );
-
+      
       case 'itemsTable':
         return (
           <table style={{ width: '100%', fontSize: `${element.fontSize}px`, background: 'transparent', borderCollapse: 'collapse', border: 'none' }}>
@@ -80,15 +81,15 @@ const InvoicePreview = ({ invoice, templateData }) => {
             </tbody>
           </table>
         );
-
+      
       case 'totalsBlock':
         return (
           <div style={{ textAlign: 'right' }}>
             <strong style={{ fontSize: `${element.fontSize + 4}px` }}>Total: {formatCurrency(invoice.total)}</strong>
           </div>
         );
-
-      case 'remarksBlock': {
+        
+      case 'remarksBlock':
         let remarksHTML = element.content || '';
         const remarksPlaceholderData = {
           '{company_name}': invoice.company_name || '',
@@ -103,16 +104,15 @@ const InvoicePreview = ({ invoice, templateData }) => {
         Object.keys(remarksPlaceholderData).forEach(placeholder => {
           remarksHTML = remarksHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), remarksPlaceholderData[placeholder]);
         });
-        const styledRemarksHTML = `<div class="rtx-apply" style="line-height: ${element.lineHeight || 1.4};">${remarksHTML}</div>`;
+        const styledRemarksHTML = `<div style="line-height: ${element.lineHeight || 1.4};">${remarksHTML}</div>`;
         return <div style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: styledRemarksHTML }} />;
-      }
-
+      
       case 'image':
         return element.src ? <img src={element.src} alt="Invoice" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : null;
-
+      
       case 'line':
         return <div style={{ borderBottom: `${element.thickness || 2}px solid ${element.color || '#000'}`, height: '0', width: '100%' }} />;
-
+      
       default:
         return null;
     }
@@ -134,7 +134,8 @@ const InvoicePreview = ({ invoice, templateData }) => {
           textDecoration: element.textDecoration,
           fontStyle: element.fontStyle,
           padding: (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          lineHeight: element.lineHeight || 1.4 // Apply line height here
         }}
       >
         {renderElementContent(element)}
@@ -163,16 +164,6 @@ const InvoicePreview = ({ invoice, templateData }) => {
           .invoice-preview-canvas table {
             border-collapse: collapse;
             border-spacing: 0;
-          }
-          .invoice-preview-canvas .rtx-apply,
-          .invoice-preview-canvas .rtx-apply * {
-            margin: 0 !important;
-            padding: 0 !important;
-            line-height: inherit !important;
-          }
-          .invoice-preview-canvas .rtx-apply {
-            white-space: pre-wrap;
-            word-break: break-word;
           }
         `}
       </style>
