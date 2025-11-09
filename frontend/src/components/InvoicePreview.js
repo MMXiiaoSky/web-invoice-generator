@@ -21,8 +21,6 @@ const InvoicePreview = ({ invoice, templateData }) => {
     switch (element.type) {
       case 'text':
         let displayHTML = element.content || '';
-        
-        // Replace placeholders with actual data
         const placeholderData = {
           '{company_name}': invoice.company_name || '',
           '{address}': invoice.address || '',
@@ -33,24 +31,14 @@ const InvoicePreview = ({ invoice, templateData }) => {
           '{subtotal}': formatCurrency(invoice.subtotal),
           '{total}': formatCurrency(invoice.total)
         };
-        
         Object.keys(placeholderData).forEach(placeholder => {
-          displayHTML = displayHTML.replace(
-            new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), 
-            placeholderData[placeholder]
-          );
+          displayHTML = displayHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), placeholderData[placeholder]);
         });
-        
-        return (
-          <div 
-            style={{ whiteSpace: 'pre-wrap' }}
-            dangerouslySetInnerHTML={{ __html: displayHTML }}
-          />
-        );
+        return <div style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: displayHTML }} />;
       
       case 'customerBlock':
         return (
-          <div style={{ lineHeight: '1.6' }}>
+          <div>
             <strong>Bill To:</strong><br/>
             <strong>{invoice.company_name}</strong><br/>
             {invoice.address}<br/><br/>
@@ -61,7 +49,7 @@ const InvoicePreview = ({ invoice, templateData }) => {
       
       case 'invoiceInfo':
         return (
-          <div style={{ lineHeight: '1.6' }}>
+          <div>
             <strong>Invoice No.:</strong> {invoice.invoice_number}<br/>
             <strong>Date:</strong> {formatDate(invoice.invoice_date)}
           </div>
@@ -69,107 +57,60 @@ const InvoicePreview = ({ invoice, templateData }) => {
       
       case 'itemsTable':
         return (
-            <table style={{ 
-            width: '100%', 
-            fontSize: `${element.fontSize}px`, 
-            borderCollapse: 'collapse',
-            border: 'none',
-            background: 'transparent'
-            }}>
+          <table style={{ width: '100%', fontSize: `${element.fontSize}px`, background: 'transparent' }}>
             <thead>
-                <tr style={{ border: 'none', background: 'transparent' }}>
-                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', width: '40px', border: 'none', background: 'transparent' }}>No.</th>
-                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', border: 'none', background: 'transparent' }}>Item Description</th>
-                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', border: 'none', background: 'transparent' }}>Unit Price (RM)</th>
-                <th style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '80px', border: 'none', background: 'transparent' }}>Quantity</th>
-                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', border: 'none', background: 'transparent' }}>Total (RM)</th>
-                </tr>
+              <tr style={{ background: 'transparent' }}>
+                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', width: '40px', background: 'transparent' }}>No.</th>
+                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', background: 'transparent' }}>Item Description</th>
+                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', background: 'transparent' }}>Unit Price (RM)</th>
+                <th style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '80px', background: 'transparent' }}>Quantity</th>
+                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', background: 'transparent' }}>Total (RM)</th>
+              </tr>
             </thead>
             <tbody>
-                {invoice.items.map((item, index) => (
-                <tr key={index} style={{ border: 'none', background: 'transparent' }}>
-                    <td style={{ padding: '8px', textAlign: 'left', border: 'none', background: 'transparent', verticalAlign: 'top' }}>{index + 1}</td>
-                    <td style={{ 
-                    padding: '8px', 
-                    textAlign: 'left', 
-                    border: 'none', 
-                    background: 'transparent', 
-                    verticalAlign: 'top',
-                    whiteSpace: 'pre-wrap',
-                    wordWrap: 'break-word',
-                    lineHeight: '1.4'
-                    }}>
-                    {item.description}
-                    </td>
-                    <td style={{ padding: '8px', textAlign: 'right', border: 'none', background: 'transparent', verticalAlign: 'top' }}>{formatCurrency(item.unit_price)}</td>
-                    <td style={{ padding: '8px', textAlign: 'center', border: 'none', background: 'transparent', verticalAlign: 'top' }}>{item.quantity}</td>
-                    <td style={{ padding: '8px', textAlign: 'right', border: 'none', background: 'transparent', verticalAlign: 'top' }}>{formatCurrency(item.total)}</td>
+              {invoice.items.map((item, index) => (
+                <tr key={index} style={{ background: 'transparent' }}>
+                  <td style={{ padding: '8px', textAlign: 'left', background: 'transparent', verticalAlign: 'top' }}>{index + 1}</td>
+                  <td style={{ padding: '8px', textAlign: 'left', background: 'transparent', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordWrap: 'break-word', lineHeight: '1.4' }}>{item.description}</td>
+                  <td style={{ padding: '8px', textAlign: 'right', background: 'transparent', verticalAlign: 'top' }}>{formatCurrency(item.unit_price)}</td>
+                  <td style={{ padding: '8px', textAlign: 'center', background: 'transparent', verticalAlign: 'top' }}>{item.quantity}</td>
+                  <td style={{ padding: '8px', textAlign: 'right', background: 'transparent', verticalAlign: 'top' }}>{formatCurrency(item.total)}</td>
                 </tr>
-                ))}
+              ))}
             </tbody>
-            </table>
+          </table>
         );
       
       case 'totalsBlock':
         return (
-          <div style={{ textAlign: 'right', lineHeight: '1.8' }}>
+          <div style={{ textAlign: 'right' }}>
             <strong style={{ fontSize: `${element.fontSize + 4}px` }}>Total: {formatCurrency(invoice.total)}</strong>
           </div>
         );
-      
-      case 'image':
-        return element.src ? (
-          <img 
-            src={element.src} 
-            alt="Invoice" 
-            style={{ 
-              width: '100%', 
-              height: '100%', 
-              objectFit: 'contain'
-            }} 
-          />
-        ) : null;
-      
-      case 'line':
-        return (
-          <div 
-            style={{ 
-              borderBottom: `${element.thickness || 2}px solid ${element.color || '#000'}`, 
-              height: '0',
-              width: '100%'
-            }}
-          />
-        );
-      
+        
       case 'remarksBlock':
         let remarksHTML = element.content || '';
-        
-        // Replace placeholders with actual data
         const remarksPlaceholderData = {
-            '{company_name}': invoice.company_name || '',
-            '{address}': invoice.address || '',
-            '{attention}': invoice.attention || '',
-            '{telephone}': invoice.telephone || '',
-            '{invoice_number}': invoice.invoice_number || '',
-            '{invoice_date}': formatDate(invoice.invoice_date),
-            '{subtotal}': formatCurrency(invoice.subtotal),
-            '{total}': formatCurrency(invoice.total)
+          '{company_name}': invoice.company_name || '',
+          '{address}': invoice.address || '',
+          '{attention}': invoice.attention || '',
+          '{telephone}': invoice.telephone || '',
+          '{invoice_number}': invoice.invoice_number || '',
+          '{invoice_date}': formatDate(invoice.invoice_date),
+          '{subtotal}': formatCurrency(invoice.subtotal),
+          '{total}': formatCurrency(invoice.total)
         };
-        
         Object.keys(remarksPlaceholderData).forEach(placeholder => {
-            remarksHTML = remarksHTML.replace(
-            new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), 
-            remarksPlaceholderData[placeholder]
-            );
+          remarksHTML = remarksHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), remarksPlaceholderData[placeholder]);
         });
-        
-        return (
-            <div 
-            style={{ whiteSpace: 'pre-wrap' }}
-            dangerouslySetInnerHTML={{ __html: remarksHTML }}
-            />
-        );
-            
+        return <div style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: remarksHTML }} />;
+      
+      case 'image':
+        return element.src ? <img src={element.src} alt="Invoice" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : null;
+      
+      case 'line':
+        return <div style={{ borderBottom: `${element.thickness || 2}px solid ${element.color || '#000'}`, height: '0', width: '100%' }} />;
+      
       default:
         return null;
     }
@@ -190,9 +131,9 @@ const InvoicePreview = ({ invoice, templateData }) => {
           color: element.color,
           textDecoration: element.textDecoration,
           fontStyle: element.fontStyle,
-          padding: '5px',
-          boxSizing: 'border-box',
-          overflow: 'hidden'
+          padding: (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px',
+          overflow: 'hidden',
+          lineHeight: '1.4'
         }}
       >
         {renderElementContent(element)}
@@ -210,6 +151,20 @@ const InvoicePreview = ({ invoice, templateData }) => {
 
   return (
     <div className="invoice-preview-container">
+      <style>
+        {`
+          .invoice-preview-canvas * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+          }
+          .invoice-preview-canvas table {
+            border-collapse: collapse;
+            border-spacing: 0;
+          }
+        `}
+      </style>
       <div
         className="invoice-preview-canvas"
         style={{
