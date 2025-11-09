@@ -174,3 +174,43 @@
 .placeholder-menu::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
+.font-size-group {
+  gap: 0;
+}
+
+.font-size-select {
+  border-right: none;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.font-size-input {
+  width: 50px;
+  height: 32px;
+  padding: 5px 8px;
+  border: 1px solid #ddd;
+  border-top-right-radius: 3px;
+  border-bottom-right-radius: 3px;
+  font-size: 13px;
+}
+
+.font-size-input:focus {
+  outline: none;
+  border-color: #2196F3;
+}
+
+.placeholder-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 5px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  min-width: 180px;
+  max-height: 250px; /* Ensure it's not too tall */
+  overflow-y: auto; /* Enable scrolling */
+}
