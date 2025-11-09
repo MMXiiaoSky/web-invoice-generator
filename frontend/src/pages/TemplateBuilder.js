@@ -4,7 +4,6 @@ import { templatesAPI } from '../utils/api';
 import TemplateCanvas from '../components/TemplateCanvas';
 import RichTextEditor from '../components/RichTextEditor';
 import './TemplateBuilder.css';
-import ImageUpload from '../components/ImageUpload';
 
 const TemplateBuilder = () => {
   const { id } = useParams();
@@ -56,7 +55,8 @@ const TemplateBuilder = () => {
       color: '#000000',
       content: type === 'text' ? 'Sample Text' : type === 'remarksBlock' ? 'Remarks will appear here on the last page only' : '',
       textDecoration: 'none',
-      fontStyle: 'normal'
+      fontStyle: 'normal',
+      lineHeight: 1.4 // Default line spacing
     };
 
     setElements([...elements, newElement]);
@@ -142,38 +142,45 @@ const TemplateBuilder = () => {
 
           <div className="toolbar-section">
             <h4>Data Blocks</h4>
-            <button onClick={() => addElement('customerBlock')} className="toolbar-btn">
-              👤 Customer Block
-            </button>
-            <button onClick={() => addElement('invoiceInfo')} className="toolbar-btn">
-              📄 Invoice Info
-            </button>
-            <button onClick={() => addElement('itemsTable')} className="toolbar-btn">
-              📊 Items Table
-            </button>
-            <button onClick={() => addElement('totalsBlock')} className="toolbar-btn">
-              💰 Totals Block
-            </button>
-            <button onClick={() => addElement('remarksBlock')} className="toolbar-btn">
-              📝 Remarks Block
-            </button>
+            <button onClick={() => addElement('customerBlock')} className="toolbar-btn">👤 Customer Block</button>
+            <button onClick={() => addElement('invoiceInfo')} className="toolbar-btn">📄 Invoice Info</button>
+            <button onClick={() => addElement('itemsTable')} className="toolbar-btn">📊 Items Table</button>
+            <button onClick={() => addElement('totalsBlock')} className="toolbar-btn">💰 Totals Block</button>
+            <button onClick={() => addElement('remarksBlock')} className="toolbar-btn">📝 Remarks Block</button>
           </div>
 
           <div className="toolbar-section">
             <h4>Media & Shapes</h4>
-            <button onClick={() => addElement('image')} className="toolbar-btn">
-              🖼️ Image
-            </button>
-            <button onClick={() => addElement('line')} className="toolbar-btn">
-              ➖ Line
-            </button>
+            <button onClick={() => addElement('image')} className="toolbar-btn">🖼️ Image</button>
+            <button onClick={() => addElement('line')} className="toolbar-btn">➖ Line</button>
           </div>
 
           {selectedElement && (
             <div className="toolbar-section">
               <h4>Element Properties</h4>
               
-              {selectedElement.type === 'text' && (
+              <div className="position-inputs">
+                <div className="form-group">
+                  <label>X Position</label>
+                  <input
+                    type="number"
+                    value={Math.round(selectedElement.x)}
+                    onChange={(e) => updateElement(selectedElement.id, { x: parseInt(e.target.value) })}
+                    className="coord-input"
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Y Position</label>
+                  <input
+                    type="number"
+                    value={Math.round(selectedElement.y)}
+                    onChange={(e) => updateElement(selectedElement.id, { y: parseInt(e.target.value) })}
+                    className="coord-input"
+                  />
+                </div>
+              </div>
+
+              {(selectedElement.type === 'text' || selectedElement.type === 'remarksBlock') && (
                 <div className="form-group">
                   <label>Rich Text Content</label>
                   <RichTextEditor
@@ -187,29 +194,6 @@ const TemplateBuilder = () => {
                 </div>
               )}
 
-              {selectedElement.type === 'remarksBlock' && (
-                <div className="form-group">
-                  <label>Remarks Content (Last Page Only)</label>
-                  <RichTextEditor
-                    content={selectedElement.content}
-                    onChange={(newContent) => updateElement(selectedElement.id, { content: newContent })}
-                    placeholders={placeholders}
-                  />
-                  <small style={{ color: '#666', fontSize: '11px', marginTop: '5px', display: 'block' }}>
-                    This block will only appear on the last page of multi-page invoices
-                  </small>
-                </div>
-              )}
-
-              {selectedElement.type === 'itemsTable' && (
-                <div className="form-group">
-                  <small style={{ color: '#666', fontSize: '11px', display: 'block', marginBottom: '10px' }}>
-                    Items will automatically fit based on table height and actual item description lengths.
-                    Multi-line descriptions are handled automatically.
-                  </small>
-                </div>
-              )}
-
               {selectedElement.type === 'image' && (
                 <>
                   <div className="form-group">
@@ -217,89 +201,44 @@ const TemplateBuilder = () => {
                     <ImageUpload
                       currentSrc={selectedElement.src}
                       onImageUpload={(imageData) => {
-                        // Set image with calculated dimensions maintaining aspect ratio
-                        const maxWidth = 400;
-                        const maxHeight = 300;
-                        
-                        let newWidth = imageData.width;
-                        let newHeight = imageData.height;
-                        
-                        // Scale down if too large
+                        const maxWidth = 400; const maxHeight = 300;
+                        let newWidth = imageData.width; let newHeight = imageData.height;
                         if (newWidth > maxWidth || newHeight > maxHeight) {
-                          const widthRatio = maxWidth / newWidth;
-                          const heightRatio = maxHeight / newHeight;
-                          const scale = Math.min(widthRatio, heightRatio);
-                          
+                          const scale = Math.min(maxWidth / newWidth, maxHeight / newHeight);
                           newWidth = Math.round(newWidth * scale);
                           newHeight = Math.round(newHeight * scale);
                         }
-                        
-                        updateElement(selectedElement.id, {
-                          src: imageData.url,
-                          width: newWidth,
-                          height: newHeight,
-                          aspectRatio: imageData.aspectRatio,
-                          originalWidth: imageData.width,
-                          originalHeight: imageData.height
-                        });
+                        updateElement(selectedElement.id, { src: imageData.url, width: newWidth, height: newHeight, aspectRatio: imageData.aspectRatio, originalWidth: imageData.width, originalHeight: imageData.height });
                       }}
-                      onImageRemove={() => {
-                        updateElement(selectedElement.id, {
-                          src: '',
-                          aspectRatio: null,
-                          originalWidth: null,
-                          originalHeight: null
-                        });
-                      }}
+                      onImageRemove={() => updateElement(selectedElement.id, { src: '', aspectRatio: null, originalWidth: null, originalHeight: null })}
                     />
-                    <small style={{ color: '#666', fontSize: '11px', marginTop: '5px', display: 'block' }}>
-                      Image will maintain aspect ratio when resizing
-                    </small>
                   </div>
-                  
-                  {selectedElement.src && selectedElement.aspectRatio && (
-                    <div className="form-group">
-                      <label>Image Info</label>
-                      <div style={{ fontSize: '12px', color: '#666', lineHeight: '1.6' }}>
-                        <div>Original: {selectedElement.originalWidth} × {selectedElement.originalHeight}px</div>
-                        <div>Current: {selectedElement.width} × {selectedElement.height}px</div>
-                        <div>Aspect Ratio: {selectedElement.aspectRatio.toFixed(2)}</div>
-                      </div>
-                    </div>
-                  )}
                 </>
               )}
 
-              {selectedElement.type !== 'line' && selectedElement.type !== 'image' && selectedElement.type !== 'text' && selectedElement.type !== 'remarksBlock' && selectedElement.type !== 'itemsTable' && (
+              {selectedElement.type !== 'line' && selectedElement.type !== 'image' && selectedElement.type !== 'text' && selectedElement.type !== 'remarksBlock' && (
+                <div className="form-group">
+                  <label>Font Size</label>
+                  <input
+                    type="number"
+                    value={selectedElement.fontSize}
+                    onChange={(e) => updateElement(selectedElement.id, { fontSize: parseInt(e.target.value) })}
+                  />
+                </div>
+              )}
+
+              {selectedElement.type !== 'line' && selectedElement.type !== 'image' && selectedElement.type !== 'text' && selectedElement.type !== 'remarksBlock' && (
                 <>
                   <div className="form-group">
-                    <label>Font Size</label>
-                    <input
-                      type="number"
-                      value={selectedElement.fontSize}
-                      onChange={(e) => updateElement(selectedElement.id, { fontSize: parseInt(e.target.value) })}
-                      min="8"
-                      max="72"
-                    />
-                  </div>
-
-                  <div className="form-group">
                     <label>Font Weight</label>
-                    <select
-                      value={selectedElement.fontWeight}
-                      onChange={(e) => updateElement(selectedElement.id, { fontWeight: e.target.value })}
-                    >
+                    <select value={selectedElement.fontWeight} onChange={(e) => updateElement(selectedElement.id, { fontWeight: e.target.value })}>
                       <option value="normal">Normal</option>
                       <option value="bold">Bold</option>
                     </select>
                   </div>
-
                   <div className="form-group">
                     <label>Font Style</label>
-                    <select
-                      value={selectedElement.fontStyle || 'normal'}
-                      onChange={(e) => updateElement(selectedElement.id, { fontStyle: e.target.value })}
-                    >
+                    <select value={selectedElement.fontStyle || 'normal'} onChange={(e) => updateElement(selectedElement.id, { fontStyle: e.target.value })}>
                       <option value="normal">Normal</option>
                       <option value="italic">Italic</option>
                     </select>
@@ -309,27 +248,31 @@ const TemplateBuilder = () => {
 
               <div className="form-group">
                 <label>Color</label>
-                <input
-                  type="color"
-                  value={selectedElement.color}
-                  onChange={(e) => updateElement(selectedElement.id, { color: e.target.value })}
-                />
+                <input type="color" value={selectedElement.color} onChange={(e) => updateElement(selectedElement.id, { color: e.target.value })} />
               </div>
 
-              {selectedElement.type === 'line' && (
+              {(selectedElement.type === 'text' || selectedElement.type === 'remarksBlock' || selectedElement.type === 'customerBlock' || selectedElement.type === 'invoiceInfo') && (
                 <div className="form-group">
-                  <label>Thickness</label>
+                  <label>Line Spacing</label>
                   <input
                     type="number"
-                    value={selectedElement.thickness || 2}
-                    onChange={(e) => updateElement(selectedElement.id, { thickness: parseInt(e.target.value) })}
+                    step="0.1"
                     min="1"
-                    max="10"
+                    max="3"
+                    value={selectedElement.lineHeight || 1.4}
+                    onChange={(e) => updateElement(selectedElement.id, { lineHeight: parseFloat(e.target.value) })}
                   />
                 </div>
               )}
 
-              <button onClick={deleteElement} className="btn btn-danger btn-small" style={{ width: '100%', marginTop: '10px' }}>
+              {selectedElement.type === 'line' && (
+                <div className="form-group">
+                  <label>Thickness</label>
+                  <input type="number" value={selectedElement.thickness || 2} onChange={(e) => updateElement(selectedElement.id, { thickness: parseInt(e.target.value) })} min="1" max="10" />
+                </div>
+              )}
+
+              <button onClick={deleteElement} className="btn btn-danger btn-small" style={{ width: '100%', marginTop: '20px' }}>
                 🗑️ Delete Element
               </button>
             </div>
@@ -337,12 +280,7 @@ const TemplateBuilder = () => {
         </div>
 
         <div className="canvas-area">
-          <TemplateCanvas
-            elements={elements}
-            onElementUpdate={updateElement}
-            selectedElement={selectedElement}
-            onSelectElement={setSelectedElement}
-          />
+          <TemplateCanvas elements={elements} onElementUpdate={updateElement} selectedElement={selectedElement} onSelectElement={setSelectedElement} />
         </div>
       </div>
     </div>
