@@ -221,9 +221,9 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
     el.style.fontWeight = element.fontWeight || 'normal';
     el.style.fontStyle = element.fontStyle || 'normal';
     el.style.textDecoration = element.textDecoration || 'none';
-    el.style.padding = '5px';
+    el.style.padding = (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px';
     el.style.overflow = 'hidden';
-    el.style.lineHeight = element.lineHeight || 1.4; // Consistent line height
+    el.style.lineHeight = element.lineHeight || 1.4; // ✅ APPLY LINE HEIGHT
 
     switch (element.type) {
       case 'text':
@@ -290,7 +290,7 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
 
       case 'itemsTable':
         el.innerHTML = createItemsTable(items, element.fontSize, startIndex);
-        el.style.padding = '0'; // No padding for table container itself
+        el.style.padding = '0';
         break;
 
       case 'totalsBlock':
@@ -334,7 +334,7 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
         break;
 
       case 'image':
-        el.style.padding = '0'; // No padding for image container
+        el.style.padding = '0';
         if (element.src) {
           const img = document.createElement('img');
           img.src = element.src;
@@ -349,7 +349,7 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
       case 'line':
         el.style.borderBottom = `${element.thickness || 2}px solid ${element.color || '#000'}`;
         el.style.height = '0';
-        el.style.padding = '0'; // No padding for lines
+        el.style.padding = '0';
         break;
 
       default:
