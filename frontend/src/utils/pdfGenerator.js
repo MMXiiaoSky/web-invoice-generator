@@ -2,36 +2,49 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 /**
- * Measure items and create pages based on actual heights
+ * Measure actual heights of all items and group into pages
  */
 const measureItemsAndCreatePages = async (invoiceData, templateData) => {
   const itemsTable = templateData.elements.find(el => el.type === 'itemsTable');
-  if (!itemsTable) return [invoiceData.items];
+  if (!itemsTable) {
+    // Fallback: all items on one page
+    return [invoiceData.items];
+  }
 
   const tableHeight = itemsTable.height || 300;
   const fontSize = itemsTable.fontSize || 12;
-  const headerHeight = 40;
-  const availableHeight = tableHeight - headerHeight;
+  const headerHeight = 40; // Header row height (slightly more accurate)
+  const availableHeight = tableHeight - headerHeight; // Remove conservative buffer
 
+  console.log('📏 Page Measurement:');
+  console.log(`  Table Height: ${tableHeight}px`);
+  console.log(`  Header Height: ${headerHeight}px`);
+  console.log(`  Available for Items: ${availableHeight}px`);
+
+  // Create temporary container to measure items
   const measureContainer = document.createElement('div');
   measureContainer.style.position = 'absolute';
   measureContainer.style.left = '-9999px';
   measureContainer.style.top = '0';
-  measureContainer.style.width = `${itemsTable.width - 10}px`;
+  measureContainer.style.width = `${itemsTable.width - 10}px`; // Account for padding
   measureContainer.style.visibility = 'hidden';
   document.body.appendChild(measureContainer);
 
+  // Measure each item's height
   const itemHeights = [];
-
+  
   for (let i = 0; i < invoiceData.items.length; i++) {
     const item = invoiceData.items[i];
-    const descriptionHTML = (item.description || '').replace(/\n/g, '<br>');
-
+    
+    // Convert line breaks to <br> tags for accurate measurement
+    const descriptionHTML = item.description.replace(/\n/g, '<br>');
+    
     const row = document.createElement('div');
     row.style.width = '100%';
     row.style.fontSize = `${fontSize}px`;
     row.style.boxSizing = 'border-box';
-
+    
+    // Create table structure similar to actual rendering
     row.innerHTML = `
       <table style="width: 100%; border-collapse: collapse; font-size: ${fontSize}px;">
         <tr>
@@ -43,55 +56,161 @@ const measureItemsAndCreatePages = async (invoiceData, templateData) => {
         </tr>
       </table>
     `;
-
+    
     measureContainer.appendChild(row);
     const height = row.offsetHeight;
     itemHeights.push(height);
+    
+    console.log(`  Item ${i + 1}: ${height}px - "${item.description.substring(0, 30)}${item.description.length > 30 ? '...' : ''}"`);
+    
     measureContainer.removeChild(row);
   }
 
   document.body.removeChild(measureContainer);
 
+  // Group items into pages based on cumulative height
   const pages = [];
   let currentPage = [];
   let currentHeight = 0;
 
+  console.log('\n📄 Page Distribution:');
+
   for (let i = 0; i < invoiceData.items.length; i++) {
     const itemHeight = itemHeights[i];
-    if (currentHeight + itemHeight > availableHeight && currentPage.length > 0) {
+    const projectedHeight = currentHeight + itemHeight;
+    
+    // Check if adding this item would exceed available height
+    if (projectedHeight > availableHeight && currentPage.length > 0) {
+      // Log current page stats
+      console.log(`  Page ${pages.length + 1}: ${currentPage.length} items, ${currentHeight}px used (${((currentHeight/availableHeight)*100).toFixed(1)}% full)`);
+      
+      // Start new page
       pages.push(currentPage);
       currentPage = [invoiceData.items[i]];
       currentHeight = itemHeight;
     } else {
+      // Add to current page
       currentPage.push(invoiceData.items[i]);
-      currentHeight += itemHeight;
+      currentHeight = projectedHeight;
     }
   }
 
-  if (currentPage.length > 0) pages.push(currentPage);
+  // Add last page if it has items
+  if (currentPage.length > 0) {
+    console.log(`  Page ${pages.length + 1}: ${currentPage.length} items, ${currentHeight}px used (${((currentHeight/availableHeight)*100).toFixed(1)}% full)`);
+    pages.push(currentPage);
+  }
+
+  console.log(`\n✅ Total Pages: ${pages.length}`);
+  console.log('─────────────────────────────────────\n');
 
   return pages;
+};
+
+/**
+ * Generate PDF from invoice template
+ * Supports multi-page for long item lists with smart pagination
+ */
+export const generateInvoicePDF = async (invoiceData, templateData) => {
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  const pageWidth = 210; // A4 width in mm
+  const pageHeight = 297; // A4 height in mm
+  
+  // Measure items and create pages dynamically
+  const itemPages = await measureItemsAndCreatePages(invoiceData, templateData);
+  const totalPages = itemPages.length;
+
+  for (let page = 0; page < totalPages; page++) {
+    if (page > 0) {
+      pdf.addPage();
+    }
+
+    const pageItems = itemPages[page];
+    const isFirstPage = page === 0;
+    const isLastPage = page === totalPages - 1;
+    
+    // Calculate start index for item numbering
+    let startIndex = 0;
+    for (let i = 0; i < page; i++) {
+      startIndex += itemPages[i].length;
+    }
+
+    // Create temporary container for rendering - match A4 size exactly
+    const container = document.createElement('div');
+    container.style.width = '794px'; // A4 width at 96 DPI (210mm = 794px)
+    container.style.height = '1123px'; // A4 height at 96 DPI (297mm = 1123px)
+    container.style.padding = '0';
+    container.style.margin = '0';
+    container.style.background = 'white';
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.style.boxSizing = 'border-box';
+    
+    // Render template elements
+    renderTemplateElements(container, templateData, invoiceData, pageItems, isFirstPage, isLastPage, startIndex);
+    
+    document.body.appendChild(container);
+
+    // Convert to canvas and add to PDF
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      width: 794,
+      height: 1123,
+      windowWidth: 794,
+      windowHeight: 1123,
+      x: 0,
+      y: 0,
+      scrollX: 0,
+      scrollY: 0,
+      backgroundColor: '#ffffff'
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
+
+    document.body.removeChild(container);
+  }
+
+  return pdf;
 };
 
 /**
  * Render template elements to container - EXACT positioning
  */
 const renderTemplateElements = (container, templateData, invoiceData, items, isFirstPage, isLastPage, startIndex = 0) => {
-  // Strong reset for consistency
+  // Add a global CSS reset to the container
   const style = document.createElement('style');
   style.innerHTML = `
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif; }
-    table { border-collapse: collapse; border-spacing: 0; }
-    .rtx-apply, .rtx-apply * { margin: 0 !important; padding: 0 !important; line-height: inherit !important; }
-    .rtx-apply { white-space: pre-wrap; word-break: break-word; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    }
+    table {
+      border-collapse: collapse;
+      border-spacing: 0;
+    }
   `;
   container.appendChild(style);
 
   templateData.elements.forEach(element => {
-    if (element.type === 'totalsBlock' && !isLastPage) return;
-    if (element.type === 'remarksBlock' && !isLastPage) return;
-
+    // Skip totals block if not last page
+    if (element.type === 'totalsBlock' && !isLastPage) {
+      return;
+    }
+    
+    // Skip remarks block if not last page
+    if (element.type === 'remarksBlock' && !isLastPage) {
+      return;
+    }
+    
     const el = document.createElement('div');
+    
+    // EXACT positioning - match template builder
     el.style.position = 'absolute';
     el.style.left = `${element.x}px`;
     el.style.top = `${element.y}px`;
@@ -104,9 +223,10 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
     el.style.textDecoration = element.textDecoration || 'none';
     el.style.padding = (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px';
     el.style.overflow = 'hidden';
+    el.style.lineHeight = element.lineHeight || 1.4; // Apply line height here
 
     switch (element.type) {
-      case 'text': {
+      case 'text':
         let pdfHTML = element.content || '';
         const formatCurrency = (amount) => `RM ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
         const formatDate = (dateString) => {
@@ -126,20 +246,20 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
         Object.keys(placeholderData).forEach(placeholder => {
           pdfHTML = pdfHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), placeholderData[placeholder]);
         });
-        el.innerHTML = `<div class="rtx-apply" style="line-height: ${element.lineHeight || 1.4};">${pdfHTML}</div>`;
+        const styledPdfHTML = `<div style="line-height: ${element.lineHeight || 1.4};">${pdfHTML}</div>`;
+        el.innerHTML = styledPdfHTML;
+        el.style.whiteSpace = 'pre-wrap';
         break;
-      }
 
       case 'customerBlock':
         el.innerHTML = `<div><strong>Bill To:</strong><br/><strong>${invoiceData.company_name}</strong><br/>${invoiceData.address || ''}<br/><br/>Attn: ${invoiceData.attention || ''}<br/>Tel: ${invoiceData.telephone || ''}</div>`;
         break;
 
-      case 'invoiceInfo': {
+      case 'invoiceInfo':
         const invDate = new Date(invoiceData.invoice_date);
         const invFormattedDate = `${String(invDate.getDate()).padStart(2, '0')}/${String(invDate.getMonth() + 1).padStart(2, '0')}/${invDate.getFullYear()}`;
         el.innerHTML = `<div><strong>Invoice No.:</strong> ${invoiceData.invoice_number}<br/><strong>Date:</strong> ${invFormattedDate}</div>`;
         break;
-      }
 
       case 'itemsTable':
         el.innerHTML = createItemsTable(items, element.fontSize, startIndex);
@@ -152,7 +272,7 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
         }
         break;
 
-      case 'remarksBlock': {
+      case 'remarksBlock':
         if (isLastPage) {
           let remarksHTML = element.content || '';
           const formatCurrencyRemarks = (amount) => `RM ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
@@ -173,12 +293,14 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
           Object.keys(remarksPlaceholderData).forEach(placeholder => {
             remarksHTML = remarksHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), remarksPlaceholderData[placeholder]);
           });
-          el.innerHTML = `<div class="rtx-apply" style="line-height: ${element.lineHeight || 1.4};">${remarksHTML}</div>`;
+          const styledRemarksHTML = `<div style="line-height: ${element.lineHeight || 1.4};">${remarksHTML}</div>`;
+          el.innerHTML = styledRemarksHTML;
+          el.style.whiteSpace = 'pre-wrap';
         }
         break;
-      }
 
       case 'image':
+        el.style.padding = '0';
         if (element.src) {
           const img = document.createElement('img');
           img.src = element.src;
@@ -205,7 +327,7 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
 };
 
 /**
- * Create items table HTML
+ * Create HTML table for items (Malaysian format - No borders or backgrounds)
  */
 const createItemsTable = (items, fontSize, startIndex = 0) => {
   let html = `
@@ -225,9 +347,13 @@ const createItemsTable = (items, fontSize, startIndex = 0) => {
   items.forEach((item, index) => {
     const unitPrice = `RM ${item.unit_price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
     const total = `RM ${item.total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+    
+    // Use startIndex + index to continue numbering across pages
     const itemNumber = startIndex + index + 1;
-    const descriptionHTML = (item.description || '').replace(/\n/g, '<br>');
-
+    
+    // Convert line breaks to <br> tags for HTML rendering
+    const descriptionHTML = item.description.replace(/\n/g, '<br>');
+    
     html += `
       <tr style="border: none; background: transparent;">
         <td style="padding: 8px; text-align: left; border: none; background: transparent; vertical-align: top;">${itemNumber}</td>
@@ -248,69 +374,7 @@ const createItemsTable = (items, fontSize, startIndex = 0) => {
 };
 
 /**
- * Generate PDF
- */
-export const generateInvoicePDF = async (invoiceData, templateData) => {
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const pageWidth = 210;
-  const pageHeight = 297;
-
-  // Smart pagination using real measurements
-  const itemPages = await measureItemsAndCreatePages(invoiceData, templateData);
-  const totalPages = itemPages.length;
-
-  for (let page = 0; page < totalPages; page++) {
-    if (page > 0) pdf.addPage();
-
-    const pageItems = itemPages[page];
-    const isFirstPage = page === 0;
-    const isLastPage = page === totalPages - 1;
-
-    let startIndex = 0;
-    for (let i = 0; i < page; i++) {
-      startIndex += itemPages[i].length;
-    }
-
-    const container = document.createElement('div');
-    container.style.width = '794px';
-    container.style.height = '1123px';
-    container.style.padding = '0';
-    container.style.margin = '0';
-    container.style.background = 'white';
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
-    container.style.top = '0';
-    container.style.boxSizing = 'border-box';
-
-    renderTemplateElements(container, templateData, invoiceData, pageItems, isFirstPage, isLastPage, startIndex);
-    document.body.appendChild(container);
-
-    const canvas = await html2canvas(container, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      width: 794,
-      height: 1123,
-      windowWidth: 794,
-      windowHeight: 1123,
-      x: 0,
-      y: 0,
-      scrollX: 0,
-      scrollY: 0,
-      backgroundColor: '#ffffff'
-    });
-
-    const imgData = canvas.toDataURL('image/png');
-    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
-
-    document.body.removeChild(container);
-  }
-
-  return pdf;
-};
-
-/**
- * Download helper
+ * Download PDF
  */
 export const downloadPDF = async (invoiceData, templateData, filename) => {
   try {
