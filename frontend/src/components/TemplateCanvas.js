@@ -130,52 +130,64 @@ const TemplateCanvas = ({ elements, onElementUpdate, selectedElement, onSelectEl
   };
 
   const renderElement = (element) => {
-    const isSelected = selectedElement?.id === element.id;
-    const maxWidth = A4_WIDTH - element.x;
-    const maxHeight = A4_HEIGHT - element.y;
-    const lockAspectRatio = element.type === 'image' && element.aspectRatio;
+  const isSelected = selectedElement?.id === element.id;
+  const maxWidth = A4_WIDTH - element.x;
+  const maxHeight = A4_HEIGHT - element.y;
+  const lockAspectRatio = element.type === 'image' && element.aspectRatio;
 
-    return (
-      <Draggable
-        key={element.id}
-        position={{ x: element.x, y: element.y }}
-        onStop={(e, data) => handleDrag(element.id, e, data)}
-        bounds="parent"
-        handle=".drag-handle"
-      >
-        <div
-          className={`element-wrapper ${isSelected ? 'selected' : ''}`}
-          style={{ position: 'absolute', width: element.width, height: element.height }}
-          onClick={(e) => handleClick(e, element)}
-        >
-          <ResizableBox
-            width={element.width}
-            height={element.height}
-            onResize={(e, data) => handleResize(element.id, e, data)}
-            minConstraints={[50, 20]}
-            maxConstraints={[maxWidth, maxHeight]}
-            resizeHandles={['se', 'sw', 'ne', 'nw', 'e', 'w', 'n', 's']}
-            lockAspectRatio={lockAspectRatio}
-          >
-            <div
-              className="element-content drag-handle"
-              style={{
-                padding: (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px',
-                height: '100%',
-                width: '100%',
-                overflow: 'hidden',
-                cursor: 'move',
-                lineHeight: element.lineHeight || 1.4 // Apply line height here
-              }}
-            >
-              {renderElementContent(element)}
-            </div>
-          </ResizableBox>
-          {isSelected && <div className="selection-indicator">✓ Selected</div>}
-        </div>
-      </Draggable>
-    );
+  // For rich text blocks, we apply font size and line height to the inner wrapper
+  const isRichTextBlock = element.type === 'text' || element.type === 'remarksBlock';
+  
+  const elementStyle = {
+    padding: (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px',
+    height: '100%',
+    width: '100%',
+    overflow: 'hidden',
+    cursor: 'move',
+    // Apply base styles here
+    color: element.color,
+    fontSize: isRichTextBlock ? 'inherit' : `${element.fontSize}px`, // Inherit for rich text
+    lineHeight: element.lineHeight || 1.4,
+    fontWeight: element.fontWeight,
+    fontStyle: element.fontStyle,
   };
+
+  return (
+    <Draggable
+      key={element.id}
+      position={{ x: element.x, y: element.y }}
+      onStop={(e, data) => handleDrag(element.id, e, data)}
+      bounds="parent"
+      handle=".drag-handle"
+    >
+      <div 
+        className={`element-wrapper ${isSelected ? 'selected' : ''}`}
+        style={{
+          position: 'absolute',
+          width: element.width,
+          height: element.height,
+          fontSize: isRichTextBlock ? `${element.fontSize}px` : 'inherit', // Set base font size on wrapper for rich text
+        }}
+        onClick={(e) => handleClick(e, element)}
+      >
+        <ResizableBox
+          width={element.width}
+          height={element.height}
+          onResize={(e, data) => handleResize(element.id, e, data)}
+          minConstraints={[50, 20]}
+          maxConstraints={[maxWidth, maxHeight]}
+          resizeHandles={['se', 'sw', 'ne', 'nw', 'e', 'w', 'n', 's']}
+          lockAspectRatio={lockAspectRatio}
+        >
+          <div className="element-content drag-handle" style={elementStyle}>
+            {renderElementContent(element)}
+          </div>
+        </ResizableBox>
+        {isSelected && <div className="selection-indicator">✓ Selected</div>}
+      </div>
+    </Draggable>
+  );
+};
 
   return (
     <div className="canvas-container">
