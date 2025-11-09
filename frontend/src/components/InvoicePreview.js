@@ -34,7 +34,8 @@ const InvoicePreview = ({ invoice, templateData }) => {
         Object.keys(placeholderData).forEach(placeholder => {
           displayHTML = displayHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), placeholderData[placeholder]);
         });
-        return <div style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: displayHTML }} />;
+        const styledDisplayHTML = `<div style="line-height: ${element.lineHeight || 1.4};">${displayHTML}</div>`;
+        return <div style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: styledDisplayHTML }} />;
       
       case 'customerBlock':
         return (
@@ -57,24 +58,24 @@ const InvoicePreview = ({ invoice, templateData }) => {
       
       case 'itemsTable':
         return (
-          <table style={{ width: '100%', fontSize: `${element.fontSize}px`, background: 'transparent' }}>
+          <table style={{ width: '100%', fontSize: `${element.fontSize}px`, background: 'transparent', borderCollapse: 'collapse', border: 'none' }}>
             <thead>
-              <tr style={{ background: 'transparent' }}>
-                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', width: '40px', background: 'transparent' }}>No.</th>
-                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', background: 'transparent' }}>Item Description</th>
-                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', background: 'transparent' }}>Unit Price (RM)</th>
-                <th style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '80px', background: 'transparent' }}>Quantity</th>
-                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', background: 'transparent' }}>Total (RM)</th>
+              <tr style={{ background: 'transparent', border: 'none' }}>
+                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', width: '40px', background: 'transparent', border: 'none' }}>No.</th>
+                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', background: 'transparent', border: 'none' }}>Item Description</th>
+                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', background: 'transparent', border: 'none' }}>Unit Price (RM)</th>
+                <th style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '80px', background: 'transparent', border: 'none' }}>Quantity</th>
+                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', background: 'transparent', border: 'none' }}>Total (RM)</th>
               </tr>
             </thead>
             <tbody>
               {invoice.items.map((item, index) => (
-                <tr key={index} style={{ background: 'transparent' }}>
-                  <td style={{ padding: '8px', textAlign: 'left', background: 'transparent', verticalAlign: 'top' }}>{index + 1}</td>
-                  <td style={{ padding: '8px', textAlign: 'left', background: 'transparent', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordWrap: 'break-word', lineHeight: '1.4' }}>{item.description}</td>
-                  <td style={{ padding: '8px', textAlign: 'right', background: 'transparent', verticalAlign: 'top' }}>{formatCurrency(item.unit_price)}</td>
-                  <td style={{ padding: '8px', textAlign: 'center', background: 'transparent', verticalAlign: 'top' }}>{item.quantity}</td>
-                  <td style={{ padding: '8px', textAlign: 'right', background: 'transparent', verticalAlign: 'top' }}>{formatCurrency(item.total)}</td>
+                <tr key={index} style={{ background: 'transparent', border: 'none' }}>
+                  <td style={{ padding: '8px', textAlign: 'left', background: 'transparent', verticalAlign: 'top', border: 'none' }}>{index + 1}</td>
+                  <td style={{ padding: '8px', textAlign: 'left', background: 'transparent', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordWrap: 'break-word', lineHeight: '1.4', border: 'none' }}>{item.description}</td>
+                  <td style={{ padding: '8px', textAlign: 'right', background: 'transparent', verticalAlign: 'top', border: 'none' }}>{formatCurrency(item.unit_price)}</td>
+                  <td style={{ padding: '8px', textAlign: 'center', background: 'transparent', verticalAlign: 'top', border: 'none' }}>{item.quantity}</td>
+                  <td style={{ padding: '8px', textAlign: 'right', background: 'transparent', verticalAlign: 'top', border: 'none' }}>{formatCurrency(item.total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -103,7 +104,8 @@ const InvoicePreview = ({ invoice, templateData }) => {
         Object.keys(remarksPlaceholderData).forEach(placeholder => {
           remarksHTML = remarksHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), remarksPlaceholderData[placeholder]);
         });
-        return <div style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: remarksHTML }} />;
+        const styledRemarksHTML = `<div style="line-height: ${element.lineHeight || 1.4};">${remarksHTML}</div>`;
+        return <div style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: styledRemarksHTML }} />;
       
       case 'image':
         return element.src ? <img src={element.src} alt="Invoice" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : null;
@@ -117,29 +119,29 @@ const InvoicePreview = ({ invoice, templateData }) => {
   };
 
   const renderElement = (element) => {
-  return (
-    <div
-      key={element.id}
-      style={{
-        position: 'absolute',
-        left: `${element.x}px`,
-        top: `${element.y}px`,
-        width: `${element.width}px`,
-        height: `${element.height}px`,
-        fontSize: `${element.fontSize}px`,
-        fontWeight: element.fontWeight,
-        color: element.color,
-        textDecoration: element.textDecoration,
-        fontStyle: element.fontStyle,
-        padding: (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px',
-        overflow: 'hidden',
-        lineHeight: element.lineHeight || 1.4 // ✅ APPLY LINE HEIGHT
-      }}
-    >
-      {renderElementContent(element)}
-    </div>
-  );
-};
+    return (
+      <div
+        key={element.id}
+        style={{
+          position: 'absolute',
+          left: `${element.x}px`,
+          top: `${element.y}px`,
+          width: `${element.width}px`,
+          height: `${element.height}px`,
+          fontSize: `${element.fontSize}px`,
+          fontWeight: element.fontWeight,
+          color: element.color,
+          textDecoration: element.textDecoration,
+          fontStyle: element.fontStyle,
+          padding: (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px',
+          overflow: 'hidden',
+          lineHeight: element.lineHeight || 1.4 // Apply line height here
+        }}
+      >
+        {renderElementContent(element)}
+      </div>
+    );
+  };
 
   if (!templateData || !templateData.elements) {
     return (
