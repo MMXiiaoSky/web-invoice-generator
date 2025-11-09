@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { templatesAPI } from '../utils/api';
 import TemplateCanvas from '../components/TemplateCanvas';
 import RichTextEditor from '../components/RichTextEditor';
+import ImageUpload from '../components/ImageUpload'; 
 import './TemplateBuilder.css';
 
 const TemplateBuilder = () => {
