@@ -53,24 +53,55 @@
   margin: 0 5px;
 }
 
-.font-size-select {
-  padding: 5px 8px;
+/* Word-like Font Size Selector */
+.font-size-group {
+  position: relative;
+  display: flex;
+  align-items: center;
   border: 1px solid #ddd;
   border-radius: 3px;
   background: white;
-  cursor: pointer;
-  font-size: 13px;
   height: 32px;
 }
 
-.font-size-select:hover {
-  border-color: #2196F3;
+.font-size-input {
+  width: 45px;
+  height: 30px;
+  border: none;
+  padding-left: 8px;
+  font-size: 14px;
+  background: transparent;
+  -moz-appearance: textfield; /* Firefox */
+}
+.font-size-input:focus {
+  outline: none;
+}
+.font-size-input::-webkit-outer-spin-button,
+.font-size-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
-.font-size-select:focus {
-  outline: none;
-  border-color: #2196F3;
+.font-size-select {
+  height: 30px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  padding-right: 20px; /* Space for the arrow */
 }
+.font-size-group::after {
+  content: '▼';
+  font-size: 10px;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
 
 .placeholder-dropdown {
   position: relative;
@@ -93,7 +124,7 @@
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   z-index: 1000;
   min-width: 180px;
-  max-height: 300px;
+  max-height: 250px;
   overflow-y: auto;
 }
 
@@ -142,7 +173,12 @@
   background: #fafafa;
 }
 
-/* Ensure formatting is visible in editor */
+.editor-content p,
+.editor-content div {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
 .editor-content b,
 .editor-content strong {
   font-weight: bold;
@@ -155,69 +191,4 @@
 
 .editor-content u {
   text-decoration: underline;
-}
-
-/* Scrollbar for placeholder menu */
-.placeholder-menu::-webkit-scrollbar {
-  width: 6px;
-}
-
-.placeholder-menu::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-
-.placeholder-menu::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 3px;
-}
-
-.placeholder-menu::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-.font-size-group {
-  gap: 0;
-}
-
-.font-size-select {
-  border-right: none;
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.font-size-input {
-  width: 50px;
-  height: 32px;
-  padding: 5px 8px;
-  border: 1px solid #ddd;
-  border-top-right-radius: 3px;
-  border-bottom-right-radius: 3px;
-  font-size: 13px;
-}
-
-.font-size-input:focus {
-  outline: none;
-  border-color: #2196F3;
-}
-
-.placeholder-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 5px;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 1000;
-  min-width: 180px;
-  max-height: 250px; /* Ensure it's not too tall */
-  overflow-y: auto; /* Enable scrolling */
-}
-
-/* FORCE RESET FOR CONTENT EDITABLE */
-.editor-content p,
-.editor-content div {
-  margin: 0 !important;
-  padding: 0 !important;
 }
