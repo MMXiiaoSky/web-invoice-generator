@@ -5,9 +5,7 @@ const InvoicePreview = ({ invoice, templateData }) => {
   const A4_WIDTH = 794;
   const A4_HEIGHT = 1123;
 
-  const formatCurrency = (amount) => {
-    return `RM ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-  };
+  const formatCurrency = (amount) => `RM ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -20,7 +18,8 @@ const InvoicePreview = ({ invoice, templateData }) => {
   const renderElementContent = (element) => {
     switch (element.type) {
       case 'text':
-        let displayHTML = element.content || '';
+      case 'remarksBlock': {
+        let displayHTML = element.content || (element.type === 'text' ? 'Text' : 'Remarks');
         const placeholderData = {
           '{company_name}': invoice.company_name || '',
           '{address}': invoice.address || '',
@@ -34,9 +33,14 @@ const InvoicePreview = ({ invoice, templateData }) => {
         Object.keys(placeholderData).forEach(placeholder => {
           displayHTML = displayHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), placeholderData[placeholder]);
         });
-        const styledDisplayHTML = `<div style="line-height: ${element.lineHeight || 1.4};">${displayHTML}</div>`;
-        return <div style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: styledDisplayHTML }} />;
-      
+        return (
+          <div
+            className="rtx-content-wrapper"
+            dangerouslySetInnerHTML={{ __html: displayHTML }}
+          />
+        );
+      }
+
       case 'customerBlock':
         return (
           <div>
@@ -47,7 +51,7 @@ const InvoicePreview = ({ invoice, templateData }) => {
             Tel: {invoice.telephone}
           </div>
         );
-      
+
       case 'invoiceInfo':
         return (
           <div>
@@ -55,64 +59,46 @@ const InvoicePreview = ({ invoice, templateData }) => {
             <strong>Date:</strong> {formatDate(invoice.invoice_date)}
           </div>
         );
-      
+
       case 'itemsTable':
         return (
           <table style={{ width: '100%', fontSize: `${element.fontSize}px`, background: 'transparent', borderCollapse: 'collapse', border: 'none' }}>
             <thead>
               <tr style={{ background: 'transparent', border: 'none' }}>
-                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', width: '40px', background: 'transparent', border: 'none' }}>No.</th>
-                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', background: 'transparent', border: 'none' }}>Item Description</th>
-                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', background: 'transparent', border: 'none' }}>Unit Price (RM)</th>
-                <th style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '80px', background: 'transparent', border: 'none' }}>Quantity</th>
-                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', background: 'transparent', border: 'none' }}>Total (RM)</th>
+                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', width: '40px' }}>No.</th>
+                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold' }}>Item Description</th>
+                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px' }}>Unit Price (RM)</th>
+                <th style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '80px' }}>Quantity</th>
+                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px' }}>Total (RM)</th>
               </tr>
             </thead>
             <tbody>
               {invoice.items.map((item, index) => (
                 <tr key={index} style={{ background: 'transparent', border: 'none' }}>
-                  <td style={{ padding: '8px', textAlign: 'left', background: 'transparent', verticalAlign: 'top', border: 'none' }}>{index + 1}</td>
-                  <td style={{ padding: '8px', textAlign: 'left', background: 'transparent', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordWrap: 'break-word', lineHeight: '1.4', border: 'none' }}>{item.description}</td>
-                  <td style={{ padding: '8px', textAlign: 'right', background: 'transparent', verticalAlign: 'top', border: 'none' }}>{formatCurrency(item.unit_price)}</td>
-                  <td style={{ padding: '8px', textAlign: 'center', background: 'transparent', verticalAlign: 'top', border: 'none' }}>{item.quantity}</td>
-                  <td style={{ padding: '8px', textAlign: 'right', background: 'transparent', verticalAlign: 'top', border: 'none' }}>{formatCurrency(item.total)}</td>
+                  <td style={{ padding: '8px', textAlign: 'left', verticalAlign: 'top' }}>{index + 1}</td>
+                  <td style={{ padding: '8px', textAlign: 'left', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordWrap: 'break-word', lineHeight: '1.4' }}>{item.description}</td>
+                  <td style={{ padding: '8px', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(item.unit_price)}</td>
+                  <td style={{ padding: '8px', textAlign: 'center', verticalAlign: 'top' }}>{item.quantity}</td>
+                  <td style={{ padding: '8px', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(item.total)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         );
-      
+
       case 'totalsBlock':
         return (
           <div style={{ textAlign: 'right' }}>
             <strong style={{ fontSize: `${element.fontSize + 4}px` }}>Total: {formatCurrency(invoice.total)}</strong>
           </div>
         );
-        
-      case 'remarksBlock':
-        let remarksHTML = element.content || '';
-        const remarksPlaceholderData = {
-          '{company_name}': invoice.company_name || '',
-          '{address}': invoice.address || '',
-          '{attention}': invoice.attention || '',
-          '{telephone}': invoice.telephone || '',
-          '{invoice_number}': invoice.invoice_number || '',
-          '{invoice_date}': formatDate(invoice.invoice_date),
-          '{subtotal}': formatCurrency(invoice.subtotal),
-          '{total}': formatCurrency(invoice.total)
-        };
-        Object.keys(remarksPlaceholderData).forEach(placeholder => {
-          remarksHTML = remarksHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), remarksPlaceholderData[placeholder]);
-        });
-        const styledRemarksHTML = `<div style="line-height: ${element.lineHeight || 1.4};">${remarksHTML}</div>`;
-        return <div style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: styledRemarksHTML }} />;
-      
+
       case 'image':
         return element.src ? <img src={element.src} alt="Invoice" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : null;
-      
+
       case 'line':
         return <div style={{ borderBottom: `${element.thickness || 2}px solid ${element.color || '#000'}`, height: '0', width: '100%' }} />;
-      
+
       default:
         return null;
     }
@@ -155,15 +141,10 @@ const InvoicePreview = ({ invoice, templateData }) => {
     <div className="invoice-preview-container">
       <style>
         {`
-          .invoice-preview-canvas * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-          }
-          .invoice-preview-canvas table {
-            border-collapse: collapse;
-            border-spacing: 0;
+          .invoice-preview-canvas .rtx-content-wrapper p,
+          .invoice-preview-canvas .rtx-content-wrapper div {
+            margin: 0 !important;
+            padding: 0 !important;
           }
         `}
       </style>
