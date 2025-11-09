@@ -214,3 +214,10 @@
   max-height: 250px; /* Ensure it's not too tall */
   overflow-y: auto; /* Enable scrolling */
 }
+
+/* FORCE RESET FOR CONTENT EDITABLE */
+.editor-content p,
+.editor-content div {
+  margin: 0 !important;
+  padding: 0 !important;
+}
