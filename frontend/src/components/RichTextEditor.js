@@ -5,7 +5,6 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
   const editorRef = useRef(null);
   const [showPlaceholders, setShowPlaceholders] = useState(false);
   const [currentFontSize, setCurrentFontSize] = useState('12');
-  const selectionRef = useRef(null); // Ref to store the text selection
 
   useEffect(() => {
     if (editorRef.current && content !== editorRef.current.innerHTML) {
@@ -13,24 +12,7 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
     }
   }, [content]);
 
-  // Save the user's selection when they leave the editor
-  const handleEditorBlur = () => {
-    const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-      selectionRef.current = selection.getRangeAt(0);
-    }
-  };
-
-  // Restore the user's selection
-  const restoreSelection = () => {
-    if (selectionRef.current) {
-      editorRef.current.focus();
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(selectionRef.current);
-    }
-  };
-
+  // Update toolbar state based on cursor position
   const updateToolbar = () => {
     const selection = window.getSelection();
     if (!editorRef.current || !selection.anchorNode || !editorRef.current.contains(selection.anchorNode)) {
@@ -62,7 +44,6 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
   };
 
   const formatText = (command, value = null) => {
-    restoreSelection(); // Restore selection before formatting
     document.execCommand(command, false, value);
     handleInput();
   };
@@ -71,11 +52,13 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
     const newSize = parseInt(size);
     if (isNaN(newSize) || newSize < 1) return;
 
-    restoreSelection(); // CRITICAL: Restore selection before changing font size
-
     const sizeInPx = `${newSize}px`;
+    setCurrentFontSize(String(newSize));
+
+    // This robust method works without needing to restore selection,
+    // because onMouseDown prevents the editor from losing focus.
     document.execCommand('styleWithCSS', false, true);
-    document.execCommand('fontSize', false, '1'); // Dummy command
+    document.execCommand('fontSize', false, '1'); // Dummy value
     const fontElements = editorRef.current.getElementsByTagName('font');
     while (fontElements.length > 0) {
       const span = document.createElement('span');
@@ -85,33 +68,26 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
     }
     
     handleInput();
-    selectionRef.current = null; // Clear saved selection
   };
 
   const insertPlaceholder = (placeholder) => {
-    restoreSelection();
-    const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-      const range = selection.getRangeAt(0);
-      range.deleteContents();
-      const textNode = document.createTextNode(placeholder);
-      range.insertNode(textNode);
-      range.setStartAfter(textNode);
-      range.setEndAfter(textNode);
-      selection.removeAllRanges();
-      selection.addRange(range);
-      handleInput();
-    }
+    document.execCommand('insertText', false, placeholder);
+    handleInput();
     setShowPlaceholders(false);
+  };
+
+  // The key fix: prevent default mousedown behavior on toolbar controls
+  const preventBlur = (e) => {
+    e.preventDefault();
   };
 
   return (
     <div className="rich-text-editor">
-      <div className="editor-toolbar">
+      <div className="editor-toolbar" onMouseDown={preventBlur}>
         <div className="toolbar-group">
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => formatText('bold')} className="toolbar-btn" title="Bold (Ctrl+B)"><strong>B</strong></button>
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => formatText('italic')} className="toolbar-btn" title="Italic (Ctrl+I)"><em>I</em></button>
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => formatText('underline')} className="toolbar-btn" title="Underline (Ctrl+U)"><u>U</u></button>
+          <button type="button" onClick={() => formatText('bold')} className="toolbar-btn" title="Bold (Ctrl+B)"><strong>B</strong></button>
+          <button type="button" onClick={() => formatText('italic')} className="toolbar-btn" title="Italic (Ctrl+I)"><em>I</em></button>
+          <button type="button" onClick={() => formatText('underline')} className="toolbar-btn" title="Underline (Ctrl+U)"><u>U</u></button>
         </div>
 
         <div className="toolbar-separator"></div>
@@ -121,14 +97,15 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
             list="font-sizes"
             type="text"
             value={currentFontSize}
-            onFocus={handleEditorBlur} // Save selection when input is focused
-            onChange={(e) => setCurrentFontSize(e.target.value)}
-            onBlur={(e) => changeFontSize(e.target.value)}
+            onChange={(e) => {
+              setCurrentFontSize(e.target.value);
+              // Apply size immediately as the user types (debounced would be better, but this is simple)
+              changeFontSize(e.target.value);
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
                 changeFontSize(e.target.value);
-                e.target.blur(); // Unfocus input after applying
               }
             }}
             className="font-size-input-datalist"
@@ -141,21 +118,20 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
 
         <div className="toolbar-separator"></div>
         
-        {/* ... other toolbar groups ... */}
         <div className="toolbar-group">
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => formatText('justifyLeft')} className="toolbar-btn" title="Align Left">☰</button>
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => formatText('justifyCenter')} className="toolbar-btn" title="Align Center">☷</button>
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => formatText('justifyRight')} className="toolbar-btn" title="Align Right">☶</button>
+          <button type="button" onClick={() => formatText('justifyLeft')} className="toolbar-btn" title="Align Left">☰</button>
+          <button type="button" onClick={() => formatText('justifyCenter')} className="toolbar-btn" title="Align Center">☷</button>
+          <button type="button" onClick={() => formatText('justifyRight')} className="toolbar-btn" title="Align Right">☶</button>
         </div>
 
         <div className="toolbar-separator"></div>
 
         <div className="toolbar-group">
           <div className="placeholder-dropdown">
-            <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => setShowPlaceholders(!showPlaceholders)} className="toolbar-btn placeholder-btn" title="Insert Placeholder">{ } Placeholder ▼</button>
+            <button type="button" onClick={() => setShowPlaceholders(!showPlaceholders)} className="toolbar-btn placeholder-btn" title="Insert Placeholder">{ } Placeholder ▼</button>
             {showPlaceholders && (
               <div className="placeholder-menu">
-                {placeholders.map((ph, index) => <button key={index} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => insertPlaceholder(ph.value)} className="placeholder-menu-item">{ph.label}</button>)}
+                {placeholders.map((ph, index) => <button key={index} type="button" onClick={() => insertPlaceholder(ph.value)} className="placeholder-menu-item">{ph.label}</button>)}
               </div>
             )}
           </div>
@@ -164,16 +140,14 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
         <div className="toolbar-separator"></div>
 
         <div className="toolbar-group">
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => formatText('removeFormat')} className="toolbar-btn clear-btn" title="Clear Formatting">✕ Clear</button>
+          <button type="button" onClick={() => formatText('removeFormat')} className="toolbar-btn clear-btn" title="Clear Formatting">✕ Clear</button>
         </div>
-
       </div>
 
       <div 
         ref={editorRef} 
         contentEditable 
         onInput={handleInput} 
-        onBlur={handleEditorBlur} // Save selection when editor loses focus
         onMouseUp={updateToolbar}
         onKeyUp={updateToolbar}
         className="editor-content" 
