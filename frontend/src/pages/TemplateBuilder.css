@@ -126,3 +126,16 @@
 .placeholder-btn:active {
   transform: translateY(0);
 }
+
+.position-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.coord-input {
+  width: 100%;
+  padding: 8px;
+  font-size: 14px;
+}
