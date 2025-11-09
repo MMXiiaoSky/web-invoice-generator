@@ -24,15 +24,31 @@ const RichTextEditor = ({ content, onChange, placeholders }) => {
   };
 
   const changeFontSize = (size) => {
+    const sizeInPx = `${size}px`;
     setManualFontSize(size);
-    formatText('fontSize', '7'); // Use size 7 as placeholder
-    const fontElements = editorRef.current.querySelectorAll('font[size="7"]');
-    fontElements.forEach(element => {
-      element.removeAttribute('size');
-      element.style.fontSize = `${size}px`;
-    });
+
+    // This is a workaround for the deprecated `fontSize` command.
+    // It creates a span with a unique ID, styles it, then removes the ID.
+    const uniqueId = `font-size-${Date.now()}`;
+    document.execCommand('insertHTML', false, `<span id="${uniqueId}">&nbsp;</span>`);
+    const tempSpan = editorRef.current.querySelector(`#${uniqueId}`);
+    
+    if (tempSpan) {
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed) {
+        const range = selection.getRangeAt(0);
+        const selectedText = range.extractContents();
+        const span = document.createElement('span');
+        span.style.fontSize = sizeInPx;
+        span.appendChild(selectedText);
+        range.insertNode(span);
+      }
+      tempSpan.parentNode.removeChild(tempSpan); // Clean up the temporary span
+    }
+    
     handleInput();
   };
+
 
   const insertPlaceholder = (placeholder) => {
     const selection = window.getSelection();
