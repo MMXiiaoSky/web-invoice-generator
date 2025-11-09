@@ -1,132 +1,8 @@
-.rich-text-editor {
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  overflow: hidden;
-  background: white;
-}
-
-.editor-toolbar {
-  display: flex;
-  align-items: center;
-  padding: 8px;
-  background: #f8f9fa;
-  border-bottom: 1px solid #ddd;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.toolbar-group {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.toolbar-btn {
-  padding: 6px 10px;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s ease;
-  min-width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.toolbar-btn:hover {
-  background: #e3f2fd;
-  border-color: #2196F3;
-}
-
-.toolbar-btn:active {
-  background: #2196F3;
-  color: white;
-}
-
-.toolbar-separator {
-  width: 1px;
-  height: 24px;
-  background: #ddd;
-  margin: 0 5px;
-}
-
-/* New Datalist Font Size Selector */
-.font-size-input-datalist {
-  width: 70px;
-  height: 32px;
-  border: 1px solid #ddd;
-  border-radius: 3px;
-  padding: 0 8px;
-  font-size: 14px;
-  background-color: white;
-  transition: border-color 0.2s ease;
-}
-
-.font-size-input-datalist:hover {
-  border-color: #2196F3;
-}
-
-.font-size-input-datalist:focus {
-  outline: none;
-  border-color: #2196F3;
-  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
-}
-
-.placeholder-dropdown {
+.rich-text-editor-container {
   position: relative;
-}
-
-.placeholder-btn {
-  min-width: auto;
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-.placeholder-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 5px;
-  background: white;
   border: 1px solid #ddd;
   border-radius: 5px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 1000;
-  min-width: 180px;
-  max-height: 250px;
-  overflow-y: auto;
-}
-
-.placeholder-menu-item {
-  display: block;
-  width: 100%;
-  padding: 10px 15px;
   background: white;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-  font-size: 13px;
-  transition: background 0.2s ease;
-}
-
-.placeholder-menu-item:hover {
-  background: #e3f2fd;
-  color: #2196F3;
-}
-
-.clear-btn {
-  color: #f44336;
-  min-width: auto;
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-.clear-btn:hover {
-  background: #ffebee;
-  border-color: #f44336;
 }
 
 .editor-content {
@@ -143,6 +19,7 @@
 
 .editor-content:focus {
   background: #fafafa;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2) inset;
 }
 
 .editor-content p,
@@ -151,16 +28,77 @@
   padding: 0 !important;
 }
 
-.editor-content b,
-.editor-content strong {
-  font-weight: bold;
+/* Floating Toolbar */
+.floating-toolbar {
+  position: fixed;
+  z-index: 1001;
+  background: #333;
+  color: white;
+  border-radius: 6px;
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  animation: float-in 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-.editor-content i,
-.editor-content em {
-  font-style: italic;
+@keyframes float-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
-.editor-content u {
-  text-decoration: underline;
+.floating-toolbar .toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.floating-toolbar .toolbar-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  min-width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.floating-toolbar .toolbar-btn:hover {
+  background: #555;
+}
+
+.floating-toolbar .toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: #666;
+}
+
+/* Font Size Input in Floating Toolbar */
+.floating-toolbar .font-size-input-datalist {
+  width: 50px;
+  background: #555;
+  color: white;
+  border: 1px solid #777;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.floating-toolbar .font-size-input-datalist:focus {
+  outline: none;
+  border-color: #2196F3;
 }
