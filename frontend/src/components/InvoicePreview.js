@@ -117,29 +117,29 @@ const InvoicePreview = ({ invoice, templateData }) => {
   };
 
   const renderElement = (element) => {
-    return (
-      <div
-        key={element.id}
-        style={{
-          position: 'absolute',
-          left: `${element.x}px`,
-          top: `${element.y}px`,
-          width: `${element.width}px`,
-          height: `${element.height}px`,
-          fontSize: `${element.fontSize}px`,
-          fontWeight: element.fontWeight,
-          color: element.color,
-          textDecoration: element.textDecoration,
-          fontStyle: element.fontStyle,
-          padding: (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px',
-          overflow: 'hidden',
-          lineHeight: '1.4'
-        }}
-      >
-        {renderElementContent(element)}
-      </div>
-    );
-  };
+  return (
+    <div
+      key={element.id}
+      style={{
+        position: 'absolute',
+        left: `${element.x}px`,
+        top: `${element.y}px`,
+        width: `${element.width}px`,
+        height: `${element.height}px`,
+        fontSize: `${element.fontSize}px`,
+        fontWeight: element.fontWeight,
+        color: element.color,
+        textDecoration: element.textDecoration,
+        fontStyle: element.fontStyle,
+        padding: (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px',
+        overflow: 'hidden',
+        lineHeight: element.lineHeight || 1.4 // ✅ APPLY LINE HEIGHT
+      }}
+    >
+      {renderElementContent(element)}
+    </div>
+  );
+};
 
   if (!templateData || !templateData.elements) {
     return (
