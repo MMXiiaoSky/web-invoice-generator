@@ -223,7 +223,7 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
     el.style.textDecoration = element.textDecoration || 'none';
     el.style.padding = '5px';
     el.style.overflow = 'hidden';
-    el.style.lineHeight = '1.4'; // Consistent line height
+    el.style.lineHeight = element.lineHeight || 1.4; // Consistent line height
 
     switch (element.type) {
       case 'text':
