@@ -32,7 +32,7 @@ const TemplateCanvas = ({ elements, onElementUpdate, selectedElement, onSelectEl
   const renderElementContent = (element) => {
     switch (element.type) {
       case 'text':
-      case 'remarksBlock':
+      case 'remarksBlock': {
         let displayHTML = element.content || (element.type === 'text' ? 'Text' : 'Remarks');
         const sampleData = {
           '{company_name}': 'Sample Company Sdn Bhd',
@@ -47,10 +47,15 @@ const TemplateCanvas = ({ elements, onElementUpdate, selectedElement, onSelectEl
         Object.keys(sampleData).forEach(placeholder => {
           displayHTML = displayHTML.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), sampleData[placeholder]);
         });
-        // Wrap the final HTML in a div with the correct line-height
-        const styledCanvasHTML = `<div style="line-height: ${element.lineHeight || 1.4};">${displayHTML}</div>`;
-        return <div style={{ pointerEvents: 'none', userSelect: 'none', whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: styledCanvasHTML }} />;
-      
+        return (
+          <div
+            className="rtx-content-wrapper"
+            style={{ pointerEvents: 'none', userSelect: 'none' }}
+            dangerouslySetInnerHTML={{ __html: displayHTML }}
+          />
+        );
+      }
+
       case 'customerBlock':
         return (
           <div style={{ pointerEvents: 'none', userSelect: 'none' }}>
@@ -61,7 +66,7 @@ const TemplateCanvas = ({ elements, onElementUpdate, selectedElement, onSelectEl
             Tel: +6012-345 6789
           </div>
         );
-      
+
       case 'invoiceInfo':
         return (
           <div style={{ pointerEvents: 'none', userSelect: 'none' }}>
@@ -69,44 +74,56 @@ const TemplateCanvas = ({ elements, onElementUpdate, selectedElement, onSelectEl
             <strong>Date:</strong> 15/01/2024
           </div>
         );
-      
+
       case 'itemsTable':
         return (
           <table style={{ width: '100%', fontSize: `${element.fontSize}px`, pointerEvents: 'none', userSelect: 'none', border: 'none', background: 'transparent' }}>
             <thead>
-              <tr style={{ background: 'transparent', border: 'none' }}>
-                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', width: '40px', background: 'transparent', border: 'none' }}>No.</th>
-                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', background: 'transparent', border: 'none' }}>Description</th>
-                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', background: 'transparent', border: 'none' }}>Price (RM)</th>
-                <th style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '80px', background: 'transparent', border: 'none' }}>Qty</th>
-                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px', background: 'transparent', border: 'none' }}>Total (RM)</th>
+              <tr>
+                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', width: '40px' }}>No.</th>
+                <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold' }}>Description</th>
+                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px' }}>Price (RM)</th>
+                <th style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold', width: '80px' }}>Qty</th>
+                <th style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', width: '120px' }}>Total (RM)</th>
               </tr>
             </thead>
             <tbody>
-              <tr style={{ background: 'transparent', border: 'none' }}>
-                <td style={{ padding: '8px', textAlign: 'left', background: 'transparent', verticalAlign: 'top', border: 'none' }}>1</td>
-                <td style={{ padding: '8px', textAlign: 'left', background: 'transparent', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordWrap: 'break-word', lineHeight: '1.4', border: 'none' }}>Sample Item<br/>- Multi-line example</td>
-                <td style={{ padding: '8px', textAlign: 'right', background: 'transparent', verticalAlign: 'top', border: 'none' }}>RM 100.00</td>
-                <td style={{ padding: '8px', textAlign: 'center', background: 'transparent', verticalAlign: 'top', border: 'none' }}>2</td>
-                <td style={{ padding: '8px', textAlign: 'right', background: 'transparent', verticalAlign: 'top', border: 'none' }}>RM 200.00</td>
+              <tr>
+                <td style={{ padding: '8px', textAlign: 'left', verticalAlign: 'top' }}>1</td>
+                <td style={{ padding: '8px', textAlign: 'left', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordWrap: 'break-word', lineHeight: '1.4' }}>
+                  Sample Item<br/>- Multi-line example
+                </td>
+                <td style={{ padding: '8px', textAlign: 'right', verticalAlign: 'top' }}>RM 100.00</td>
+                <td style={{ padding: '8px', textAlign: 'center', verticalAlign: 'top' }}>2</td>
+                <td style={{ padding: '8px', textAlign: 'right', verticalAlign: 'top' }}>RM 200.00</td>
               </tr>
             </tbody>
           </table>
         );
-      
+
       case 'totalsBlock':
         return (
           <div style={{ textAlign: 'right', pointerEvents: 'none', userSelect: 'none' }}>
             <strong style={{ fontSize: `${element.fontSize + 4}px` }}>Total: RM 1,000.00</strong>
           </div>
         );
-      
+
       case 'image':
-        return element.src ? <img src={element.src} alt="Template" style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none', userSelect: 'none', draggable: false }} /> : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '24px', pointerEvents: 'none', userSelect: 'none' }}>🖼️ Image</div>;
-      
+        return element.src ? (
+          <img
+            src={element.src}
+            alt="Template"
+            style={{ width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none', userSelect: 'none', draggable: false }}
+          />
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: '24px', pointerEvents: 'none', userSelect: 'none' }}>
+            🖼️ Image
+          </div>
+        );
+
       case 'line':
         return <div style={{ borderBottom: `${element.thickness || 2}px solid ${element.color || '#000'}`, height: '0', width: '100%', pointerEvents: 'none' }} />;
-      
+
       default:
         return element.content || element.type;
     }
@@ -117,7 +134,7 @@ const TemplateCanvas = ({ elements, onElementUpdate, selectedElement, onSelectEl
     const maxWidth = A4_WIDTH - element.x;
     const maxHeight = A4_HEIGHT - element.y;
     const lockAspectRatio = element.type === 'image' && element.aspectRatio;
-    
+
     return (
       <Draggable
         key={element.id}
@@ -126,13 +143,9 @@ const TemplateCanvas = ({ elements, onElementUpdate, selectedElement, onSelectEl
         bounds="parent"
         handle=".drag-handle"
       >
-        <div 
+        <div
           className={`element-wrapper ${isSelected ? 'selected' : ''}`}
-          style={{
-            position: 'absolute',
-            width: element.width,
-            height: element.height,
-          }}
+          style={{ position: 'absolute', width: element.width, height: element.height }}
           onClick={(e) => handleClick(e, element)}
         >
           <ResizableBox
@@ -144,7 +157,8 @@ const TemplateCanvas = ({ elements, onElementUpdate, selectedElement, onSelectEl
             resizeHandles={['se', 'sw', 'ne', 'nw', 'e', 'w', 'n', 's']}
             lockAspectRatio={lockAspectRatio}
           >
-            <div className="element-content drag-handle"
+            <div
+              className="element-content drag-handle"
               style={{
                 padding: (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px',
                 height: '100%',
@@ -166,7 +180,18 @@ const TemplateCanvas = ({ elements, onElementUpdate, selectedElement, onSelectEl
   return (
     <div className="canvas-container">
       <div className="canvas-wrapper">
-        <div className="canvas" style={{ width: `${A4_WIDTH}px`, height: `${A4_HEIGHT}px`, position: 'relative', background: 'white', boxShadow: '0 0 10px rgba(0,0,0,0.1)', margin: '0 auto' }} onClick={handleCanvasClick}>
+        <div
+          className="canvas"
+          style={{
+            width: `${A4_WIDTH}px`,
+            height: `${A4_HEIGHT}px`,
+            position: 'relative',
+            background: 'white',
+            boxShadow: '0 0 10px rgba(0,0,0,0.1)',
+            margin: '0 auto'
+          }}
+          onClick={handleCanvasClick}
+        >
           {elements.map(element => renderElement(element))}
         </div>
       </div>
