@@ -2,186 +2,145 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 /**
- * Measure actual heights of all items and group into pages
+ * Attempt to capture the on-screen invoice preview directly so the PDF matches
+ * exactly what the user sees. Falls back to the template renderer when the
+ * preview is unavailable (for example when generating invoices outside of the
+ * InvoiceView page).
  */
-const measureItemsAndCreatePages = async (invoiceData, templateData) => {
-  const itemsTable = templateData.elements.find(el => el.type === 'itemsTable');
-  if (!itemsTable) {
-    // Fallback: all items on one page
-    return [invoiceData.items];
+const tryRenderExistingPreviewToPDF = async () => {
+  const preview = document.querySelector('.invoice-preview-canvas');
+
+  if (!preview) {
+    return null;
   }
 
-  const tableHeight = itemsTable.height || 300;
-  const fontSize = itemsTable.fontSize || 12;
-  const headerHeight = 40; // Header row height (slightly more accurate)
-  const availableHeight = tableHeight - headerHeight; // Remove conservative buffer
+  const rect = preview.getBoundingClientRect();
+  const width = Math.round(rect.width);
+  const height = Math.round(rect.height);
 
-  console.log('📏 Page Measurement:');
-  console.log(`  Table Height: ${tableHeight}px`);
-  console.log(`  Header Height: ${headerHeight}px`);
-  console.log(`  Available for Items: ${availableHeight}px`);
-
-  // Create temporary container to measure items
-  const measureContainer = document.createElement('div');
-  measureContainer.style.position = 'absolute';
-  measureContainer.style.left = '-9999px';
-  measureContainer.style.top = '0';
-  measureContainer.style.width = `${itemsTable.width - 10}px`; // Account for padding
-  measureContainer.style.visibility = 'hidden';
-  document.body.appendChild(measureContainer);
-
-  // Measure each item's height
-  const itemHeights = [];
-  
-  for (let i = 0; i < invoiceData.items.length; i++) {
-    const item = invoiceData.items[i];
-    
-    // Convert line breaks to <br> tags for accurate measurement
-    const descriptionHTML = item.description.replace(/\n/g, '<br>');
-    
-    const row = document.createElement('div');
-    row.style.width = '100%';
-    row.style.fontSize = `${fontSize}px`;
-    row.style.boxSizing = 'border-box';
-    
-    // Create table structure similar to actual rendering
-    row.innerHTML = `
-      <table style="width: 100%; border-collapse: collapse; font-size: ${fontSize}px;">
-        <tr>
-          <td style="padding: 8px; width: 40px; vertical-align: top;">${i + 1}</td>
-          <td style="padding: 8px; vertical-align: top; word-wrap: break-word; white-space: normal; line-height: 1.4;">${descriptionHTML}</td>
-          <td style="padding: 8px; width: 120px; vertical-align: top;">RM ${item.unit_price.toFixed(2)}</td>
-          <td style="padding: 8px; width: 80px; vertical-align: top; text-align: center;">${item.quantity}</td>
-          <td style="padding: 8px; width: 120px; vertical-align: top;">RM ${item.total.toFixed(2)}</td>
-        </tr>
-      </table>
-    `;
-    
-    measureContainer.appendChild(row);
-    const height = row.offsetHeight;
-    itemHeights.push(height);
-    
-    console.log(`  Item ${i + 1}: ${height}px - "${item.description.substring(0, 30)}${item.description.length > 30 ? '...' : ''}"`);
-    
-    measureContainer.removeChild(row);
+  if (!width || !height) {
+    return null;
   }
 
-  document.body.removeChild(measureContainer);
+  const hasVerticalOverflow = preview.scrollHeight - preview.clientHeight > 1;
+  const hasHorizontalOverflow = preview.scrollWidth - preview.clientWidth > 1;
 
-  // Group items into pages based on cumulative height
-  const pages = [];
-  let currentPage = [];
-  let currentHeight = 0;
+  // Some templates rely on absolutely positioned elements. Measure the furthest
+  // edge of the positioned children relative to the preview to catch overflow
+  // that doesn't update scroll metrics (for example when containers have
+  // `overflow: hidden`).
+  let maxBottom = 0;
+  let maxRight = 0;
 
-  console.log('\n📄 Page Distribution:');
+  Array.from(preview.children).forEach((child) => {
+    const childRect = child.getBoundingClientRect();
+    maxBottom = Math.max(maxBottom, childRect.bottom - rect.top);
+    maxRight = Math.max(maxRight, childRect.right - rect.left);
+  });
 
-  for (let i = 0; i < invoiceData.items.length; i++) {
-    const itemHeight = itemHeights[i];
-    const projectedHeight = currentHeight + itemHeight;
-    
-    // Check if adding this item would exceed available height
-    if (projectedHeight > availableHeight && currentPage.length > 0) {
-      // Log current page stats
-      console.log(`  Page ${pages.length + 1}: ${currentPage.length} items, ${currentHeight}px used (${((currentHeight/availableHeight)*100).toFixed(1)}% full)`);
-      
-      // Start new page
-      pages.push(currentPage);
-      currentPage = [invoiceData.items[i]];
-      currentHeight = itemHeight;
-    } else {
-      // Add to current page
-      currentPage.push(invoiceData.items[i]);
-      currentHeight = projectedHeight;
-    }
+  const exceedsHeight = maxBottom - height > 1;
+  const exceedsWidth = maxRight - width > 1;
+
+  if (hasVerticalOverflow || hasHorizontalOverflow || exceedsHeight || exceedsWidth) {
+    return null;
   }
 
-  // Add last page if it has items
-  if (currentPage.length > 0) {
-    console.log(`  Page ${pages.length + 1}: ${currentPage.length} items, ${currentHeight}px used (${((currentHeight/availableHeight)*100).toFixed(1)}% full)`);
-    pages.push(currentPage);
-  }
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'fixed';
+  wrapper.style.pointerEvents = 'none';
+  wrapper.style.opacity = '0';
+  wrapper.style.left = '-10000px';
+  wrapper.style.top = '0';
+  wrapper.style.background = '#ffffff';
 
-  console.log(`\n✅ Total Pages: ${pages.length}`);
-  console.log('─────────────────────────────────────\n');
+  const clone = preview.cloneNode(true);
+  clone.style.margin = '0';
+  clone.style.boxShadow = 'none';
+  clone.style.background = '#ffffff';
+  clone.style.width = `${width}px`;
+  clone.style.height = `${height}px`;
 
-  return pages;
-};
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
 
-/**
- * Generate PDF from invoice template
- * Supports multi-page for long item lists with smart pagination
- */
-export const generateInvoicePDF = async (invoiceData, templateData) => {
-  const pdf = new jsPDF('p', 'mm', 'a4');
-  const pageWidth = 210; // A4 width in mm
-  const pageHeight = 297; // A4 height in mm
-  
-  // Measure items and create pages dynamically
-  const itemPages = await measureItemsAndCreatePages(invoiceData, templateData);
-  const totalPages = itemPages.length;
-
-  for (let page = 0; page < totalPages; page++) {
-    if (page > 0) {
-      pdf.addPage();
-    }
-
-    const pageItems = itemPages[page];
-    const isFirstPage = page === 0;
-    const isLastPage = page === totalPages - 1;
-    
-    // Calculate start index for item numbering
-    let startIndex = 0;
-    for (let i = 0; i < page; i++) {
-      startIndex += itemPages[i].length;
-    }
-
-    // Create temporary container for rendering - match A4 size exactly
-    const container = document.createElement('div');
-    container.style.width = '794px'; // A4 width at 96 DPI (210mm = 794px)
-    container.style.height = '1123px'; // A4 height at 96 DPI (297mm = 1123px)
-    container.style.padding = '0';
-    container.style.margin = '0';
-    container.style.background = 'white';
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
-    container.style.top = '0';
-    container.style.boxSizing = 'border-box';
-    
-    // Render template elements
-    renderTemplateElements(container, templateData, invoiceData, pageItems, isFirstPage, isLastPage, startIndex);
-    
-    document.body.appendChild(container);
-
-    // Convert to canvas and add to PDF
-    const canvas = await html2canvas(container, {
+  try {
+    const canvas = await html2canvas(clone, {
       scale: 2,
       useCORS: true,
       logging: false,
-      width: 794,
-      height: 1123,
-      windowWidth: 794,
-      windowHeight: 1123,
-      x: 0,
-      y: 0,
+      backgroundColor: '#ffffff',
+      width,
+      height,
       scrollX: 0,
-      scrollY: 0,
-      backgroundColor: '#ffffff'
+      scrollY: 0
     });
 
-    const imgData = canvas.toDataURL('image/png');
-    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
 
-    document.body.removeChild(container);
+    const imageData = canvas.toDataURL('image/png');
+    pdf.addImage(imageData, 'PNG', 0, 0, pageWidth, pageHeight);
+
+    return pdf;
+  } finally {
+    document.body.removeChild(wrapper);
   }
-
-  return pdf;
 };
 
-/**
- * Render template elements to container - EXACT positioning
- */
-const renderTemplateElements = (container, templateData, invoiceData, items, isFirstPage, isLastPage, startIndex = 0) => {
-  // A powerful CSS reset for the PDF rendering context
+const A4_WIDTH_PX = 794; // 210mm at 96 DPI
+const A4_HEIGHT_PX = 1123; // 297mm at 96 DPI
+
+const formatCurrency = (amount = 0) =>
+  `RM ${Number(amount || 0)
+    .toFixed(2)
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+
+const formatDate = (dateString) => {
+  if (!dateString) {
+    return '';
+  }
+
+  const date = new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+};
+
+const applyPlaceholders = (html = '', invoiceData = {}) => {
+  const placeholderData = {
+    '{company_name}': invoiceData.company_name || '',
+    '{address}': invoiceData.address || '',
+    '{attention}': invoiceData.attention || '',
+    '{telephone}': invoiceData.telephone || '',
+    '{invoice_number}': invoiceData.invoice_number || '',
+    '{invoice_date}': formatDate(invoiceData.invoice_date),
+    '{subtotal}': formatCurrency(invoiceData.subtotal),
+    '{total}': formatCurrency(invoiceData.total)
+  };
+
+  let rendered = html;
+
+  Object.keys(placeholderData).forEach((placeholder) => {
+    rendered = rendered.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), placeholderData[placeholder]);
+  });
+
+  return rendered;
+};
+
+const createBasePage = (templateData, invoiceData) => {
+  const page = document.createElement('div');
+  page.className = 'invoice-preview-canvas pdf-export-page';
+  page.style.width = `${A4_WIDTH_PX}px`;
+  page.style.height = `${A4_HEIGHT_PX}px`;
+  page.style.position = 'relative';
+  page.style.background = '#ffffff';
+  page.style.boxSizing = 'border-box';
+  page.style.boxShadow = 'none';
+
   const style = document.createElement('style');
   style.innerHTML = `
     * {
@@ -198,15 +157,25 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
       margin: 0 !important;
       padding: 0 !important;
     }
+    .rtx-content-wrapper p,
+    .rtx-content-wrapper div {
+      margin: 0 !important;
+      padding: 0 !important;
+    }
   `;
-  container.appendChild(style);
+  page.appendChild(style);
 
-  templateData.elements.forEach(element => {
-    if (element.type === 'totalsBlock' && !isLastPage) return;
-    if (element.type === 'remarksBlock' && !isLastPage) return;
+  const context = {
+    page,
+    itemsBody: null,
+    itemsContainer: null,
+    itemsFontSize: 12,
+    totalsElement: null,
+    remarksElement: null
+  };
 
+  (templateData.elements || []).forEach((element) => {
     const el = document.createElement('div');
-
     el.style.position = 'absolute';
     el.style.left = `${element.x}px`;
     el.style.top = `${element.y}px`;
@@ -217,58 +186,75 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
     el.style.fontWeight = element.fontWeight || 'normal';
     el.style.fontStyle = element.fontStyle || 'normal';
     el.style.textDecoration = element.textDecoration || 'none';
-    el.style.padding = (element.type === 'image' || element.type === 'line' || element.type === 'itemsTable') ? '0' : '5px';
+    el.style.padding =
+      element.type === 'image' || element.type === 'line' || element.type === 'itemsTable' ? '0' : '5px';
     el.style.overflow = 'hidden';
     el.style.lineHeight = element.lineHeight || 1.4;
 
     switch (element.type) {
       case 'text':
       case 'remarksBlock': {
-        let htmlContent = element.content || '';
-        const formatCurrency = (amount) => `RM ${amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-        const formatDate = (dateString) => {
-          const date = new Date(dateString);
-          return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-        };
-        const placeholderData = {
-          '{company_name}': invoiceData.company_name || '',
-          '{address}': invoiceData.address || '',
-          '{attention}': invoiceData.attention || '',
-          '{telephone}': invoiceData.telephone || '',
-          '{invoice_number}': invoiceData.invoice_number || '',
-          '{invoice_date}': formatDate(invoiceData.invoice_date),
-          '{subtotal}': formatCurrency(invoiceData.subtotal),
-          '{total}': formatCurrency(invoiceData.total)
-        };
-        Object.keys(placeholderData).forEach(placeholder => {
-          htmlContent = htmlContent.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), placeholderData[placeholder]);
-        });
-        el.innerHTML = htmlContent;
-        el.style.whiteSpace = 'pre-wrap';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'rtx-content-wrapper';
+        wrapper.style.whiteSpace = 'pre-wrap';
+        wrapper.innerHTML = applyPlaceholders(element.content || '', invoiceData);
+        el.appendChild(wrapper);
+        if (element.type === 'remarksBlock') {
+          context.remarksElement = el;
+        }
         break;
       }
 
       case 'customerBlock':
-        el.innerHTML = `<div><strong>Bill To:</strong><br/><strong>${invoiceData.company_name}</strong><br/>${invoiceData.address || ''}<br/><br/>Attn: ${invoiceData.attention || ''}<br/>Tel: ${invoiceData.telephone || ''}</div>`;
+        el.innerHTML = `<div><strong>Bill To:</strong><br/><strong>${invoiceData.company_name || ''}</strong><br/>${
+          invoiceData.address || ''
+        }<br/><br/>Attn: ${invoiceData.attention || ''}<br/>Tel: ${invoiceData.telephone || ''}</div>`;
         break;
 
-      case 'invoiceInfo': {
-        const invDate = new Date(invoiceData.invoice_date);
-        const invFormattedDate = `${String(invDate.getDate()).padStart(2, '0')}/${String(invDate.getMonth() + 1).padStart(2, '0')}/${invDate.getFullYear()}`;
-        el.innerHTML = `<div><strong>Invoice No.:</strong> ${invoiceData.invoice_number}<br/><strong>Date:</strong> ${invFormattedDate}</div>`;
+      case 'invoiceInfo':
+        el.innerHTML = `<div><strong>Invoice No.:</strong> ${invoiceData.invoice_number || ''}<br/><strong>Date:</strong> ${formatDate(
+          invoiceData.invoice_date
+        )}</div>`;
+        break;
+
+      case 'itemsTable': {
+        const table = document.createElement('table');
+        table.style.width = '100%';
+        table.style.fontSize = `${element.fontSize}px`;
+        table.style.border = 'none';
+        table.style.background = 'transparent';
+
+        const thead = document.createElement('thead');
+        thead.innerHTML = `
+          <tr style="border: none; background: transparent;">
+            <th style="padding: 8px; text-align: left; font-weight: bold; width: 40px; border: none; background: transparent;">No.</th>
+            <th style="padding: 8px; text-align: left; font-weight: bold; border: none; background: transparent;">Item Description</th>
+            <th style="padding: 8px; text-align: right; font-weight: bold; width: 120px; border: none; background: transparent;">Unit Price (RM)</th>
+            <th style="padding: 8px; text-align: center; font-weight: bold; width: 80px; border: none; background: transparent;">Quantity</th>
+            <th style="padding: 8px; text-align: right; font-weight: bold; width: 120px; border: none; background: transparent;">Total (RM)</th>
+          </tr>
+        `;
+
+        const tbody = document.createElement('tbody');
+
+        table.appendChild(thead);
+        table.appendChild(tbody);
+
+        el.appendChild(table);
+        el.style.padding = '0';
+        context.itemsBody = tbody;
+        context.itemsContainer = el;
+        context.itemsFontSize = element.fontSize || 12;
         break;
       }
 
-      case 'itemsTable':
-        el.innerHTML = createItemsTable(items, element.fontSize, startIndex);
-        el.style.padding = '0';
+      case 'totalsBlock': {
+        el.innerHTML = `<div style="text-align: right;"><strong style="font-size: ${
+          (element.fontSize || 12) + 4
+        }px;">Total: ${formatCurrency(invoiceData.total)}</strong></div>`;
+        context.totalsElement = el;
         break;
-
-      case 'totalsBlock':
-        if (isLastPage) {
-          el.innerHTML = `<div style="text-align: right;"><strong style="font-size: ${element.fontSize + 4}px;">Total: RM ${invoiceData.total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</strong></div>`;
-        }
-        break;
+      }
 
       case 'image':
         if (element.src) {
@@ -289,57 +275,220 @@ const renderTemplateElements = (container, templateData, invoiceData, items, isF
         break;
 
       default:
+        if (element.content) {
+          el.textContent = element.content;
+        }
         break;
     }
-    container.appendChild(el);
+
+    page.appendChild(el);
   });
+
+  return context;
+};
+
+const createItemRow = (item, displayIndex, fontSize) => {
+  const row = document.createElement('tr');
+  row.style.border = 'none';
+  row.style.background = 'transparent';
+
+  const descriptionHTML = (item.description || '').replace(/\n/g, '<br>');
+
+  row.innerHTML = `
+    <td style="padding: 8px; text-align: left; border: none; background: transparent; vertical-align: top;">${displayIndex}</td>
+    <td style="padding: 8px; text-align: left; border: none; background: transparent; vertical-align: top; word-wrap: break-word; white-space: pre-wrap; line-height: 1.4;">${descriptionHTML}</td>
+    <td style="padding: 8px; text-align: right; border: none; background: transparent; vertical-align: top;">${formatCurrency(
+      item.unit_price
+    )}</td>
+    <td style="padding: 8px; text-align: center; border: none; background: transparent; vertical-align: top;">${
+      item.quantity
+    }</td>
+    <td style="padding: 8px; text-align: right; border: none; background: transparent; vertical-align: top;">${formatCurrency(
+      item.total
+    )}</td>
+  `;
+
+  row.style.fontSize = `${fontSize}px`;
+
+  return row;
+};
+
+const paginateInvoiceIntoPages = (invoiceData, templateData) => {
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'fixed';
+  wrapper.style.left = '-10000px';
+  wrapper.style.top = '0';
+  wrapper.style.pointerEvents = 'none';
+  wrapper.style.opacity = '0';
+  wrapper.style.background = '#ffffff';
+  document.body.appendChild(wrapper);
+
+  try {
+    const items = Array.isArray(invoiceData.items) ? invoiceData.items : [];
+    const hasItemsTable = (templateData.elements || []).some((el) => el.type === 'itemsTable');
+
+    if (!hasItemsTable) {
+      return [
+        {
+          items,
+          startIndex: 0
+        }
+      ];
+    }
+
+    let currentPage = createBasePage(templateData, invoiceData);
+    wrapper.appendChild(currentPage.page);
+
+    const pages = [];
+    let currentItems = [];
+    let currentStartIndex = 0;
+
+    items.forEach((item, index) => {
+      if (!currentPage.itemsBody || !currentPage.itemsContainer) {
+        return;
+      }
+
+      let row = createItemRow(item, index + 1, currentPage.itemsFontSize);
+      currentPage.itemsBody.appendChild(row);
+
+      const overflow =
+        currentPage.itemsContainer.scrollHeight - currentPage.itemsContainer.clientHeight > 1;
+
+      if (overflow && currentItems.length > 0) {
+        currentPage.itemsBody.removeChild(row);
+
+        pages.push({
+          items: currentItems,
+          startIndex: currentStartIndex
+        });
+
+        currentStartIndex += currentItems.length;
+        currentItems = [];
+
+        currentPage = createBasePage(templateData, invoiceData);
+        wrapper.appendChild(currentPage.page);
+
+        row = createItemRow(item, index + 1, currentPage.itemsFontSize);
+        currentPage.itemsBody.appendChild(row);
+      }
+
+      currentItems.push(item);
+    });
+
+    if (currentItems.length > 0 || pages.length === 0) {
+      pages.push({
+        items: currentItems,
+        startIndex: currentStartIndex
+      });
+    }
+
+    return pages;
+  } finally {
+    if (wrapper.parentNode) {
+      wrapper.parentNode.removeChild(wrapper);
+    }
+  }
+};
+
+const renderPageToCanvas = async (invoiceData, templateData, pageConfig, isLastPage) => {
+  const host = document.createElement('div');
+  host.style.position = 'fixed';
+  host.style.left = '-10000px';
+  host.style.top = '0';
+  host.style.width = `${A4_WIDTH_PX}px`;
+  host.style.height = `${A4_HEIGHT_PX}px`;
+  host.style.pointerEvents = 'none';
+  host.style.opacity = '0';
+  host.style.background = '#ffffff';
+
+  const { page, itemsBody, itemsFontSize, remarksElement, totalsElement } = createBasePage(
+    templateData,
+    invoiceData
+  );
+
+  if (!isLastPage) {
+    if (remarksElement && remarksElement.parentNode) {
+      remarksElement.parentNode.removeChild(remarksElement);
+    }
+    if (totalsElement && totalsElement.parentNode) {
+      totalsElement.parentNode.removeChild(totalsElement);
+    }
+  }
+
+  if (itemsBody) {
+    itemsBody.innerHTML = '';
+    const items = Array.isArray(pageConfig.items) ? pageConfig.items : [];
+    items.forEach((item, index) => {
+      const displayIndex = pageConfig.startIndex + index + 1;
+      const row = createItemRow(item, displayIndex, itemsFontSize);
+      itemsBody.appendChild(row);
+    });
+  }
+
+  host.appendChild(page);
+  document.body.appendChild(host);
+
+  try {
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    const canvas = await html2canvas(page, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      width: A4_WIDTH_PX,
+      height: A4_HEIGHT_PX,
+      windowWidth: A4_WIDTH_PX,
+      windowHeight: A4_HEIGHT_PX,
+      x: 0,
+      y: 0,
+      scrollX: 0,
+      scrollY: 0,
+      backgroundColor: '#ffffff'
+    });
+
+    return canvas;
+  } finally {
+    if (host.parentNode) {
+      host.parentNode.removeChild(host);
+    }
+  }
 };
 
 /**
- * Create HTML table for items (Malaysian format - No borders or backgrounds)
+ * Generate PDF from invoice template
  */
-const createItemsTable = (items, fontSize, startIndex = 0) => {
-  let html = `
-    <table style="width: 100%; border-collapse: collapse; font-size: ${fontSize}px; border: none; background: transparent; margin: 0; padding: 0;">
-      <thead>
-        <tr style="border: none; background: transparent;">
-          <th style="padding: 8px; text-align: left; font-weight: bold; width: 40px; border: none; background: transparent;">No.</th>
-          <th style="padding: 8px; text-align: left; font-weight: bold; border: none; background: transparent;">Item Description</th>
-          <th style="padding: 8px; text-align: right; font-weight: bold; width: 120px; border: none; background: transparent;">Unit Price (RM)</th>
-          <th style="padding: 8px; text-align: center; font-weight: bold; width: 80px; border: none; background: transparent;">Quantity</th>
-          <th style="padding: 8px; text-align: right; font-weight: bold; width: 120px; border: none; background: transparent;">Total (RM)</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
+export const generateInvoicePDF = async (invoiceData, templateData) => {
+  const pages = paginateInvoiceIntoPages(invoiceData, templateData);
+  const totalPages = pages.length;
 
-  items.forEach((item, index) => {
-    const unitPrice = `RM ${item.unit_price.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-    const total = `RM ${item.total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
-    
-    // Use startIndex + index to continue numbering across pages
-    const itemNumber = startIndex + index + 1;
-    
-    // Convert line breaks to <br> tags for HTML rendering
-    const descriptionHTML = item.description.replace(/\n/g, '<br>');
-    
-    html += `
-      <tr style="border: none; background: transparent;">
-        <td style="padding: 8px; text-align: left; border: none; background: transparent; vertical-align: top;">${itemNumber}</td>
-        <td style="padding: 8px; text-align: left; border: none; background: transparent; vertical-align: top; word-wrap: break-word; white-space: normal; line-height: 1.4;">${descriptionHTML}</td>
-        <td style="padding: 8px; text-align: right; border: none; background: transparent; vertical-align: top;">${unitPrice}</td>
-        <td style="padding: 8px; text-align: center; border: none; background: transparent; vertical-align: top;">${item.quantity}</td>
-        <td style="padding: 8px; text-align: right; border: none; background: transparent; vertical-align: top;">${total}</td>
-      </tr>
-    `;
-  });
+  if (totalPages === 1) {
+    try {
+      const directPreviewPDF = await tryRenderExistingPreviewToPDF();
+      if (directPreviewPDF) {
+        return directPreviewPDF;
+      }
+    } catch (error) {
+      console.warn('Falling back to template render for PDF generation:', error);
+    }
+  }
 
-  html += `
-      </tbody>
-    </table>
-  `;
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  const pageWidth = 210;
+  const pageHeight = 297;
 
-  return html;
+  for (let index = 0; index < totalPages; index++) {
+    if (index > 0) {
+      pdf.addPage();
+    }
+
+    const page = pages[index];
+    const isLastPage = index === totalPages - 1;
+    const canvas = await renderPageToCanvas(invoiceData, templateData, page, isLastPage);
+    const imgData = canvas.toDataURL('image/png');
+    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
+  }
+
+  return pdf;
 };
 
 /**
