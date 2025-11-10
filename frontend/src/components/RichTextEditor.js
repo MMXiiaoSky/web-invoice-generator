@@ -36,6 +36,22 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
     }
   };
 
+  const ensureSelectionActive = () => {
+    requestAnimationFrame(() => {
+      const selection = window.getSelection();
+
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        restoreSelection();
+      }
+
+      const refreshedSelection = window.getSelection();
+      if (refreshedSelection && refreshedSelection.rangeCount > 0) {
+        selectionRef.current = refreshedSelection.getRangeAt(0).cloneRange();
+        updateCurrentFontSize(refreshedSelection);
+      }
+    });
+  };
+
   const handleSelectionChange = () => {
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
@@ -95,6 +111,7 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
     restoreSelection();
     document.execCommand(command, false, value);
     handleInput();
+    ensureSelectionActive();
     editorRef.current.focus();
   };
 
@@ -116,6 +133,7 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
     }
     setCurrentFontSize(String(newSize));
     handleInput();
+    ensureSelectionActive();
     editorRef.current.focus();
   };
 
