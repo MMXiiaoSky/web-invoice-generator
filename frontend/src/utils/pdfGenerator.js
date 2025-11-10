@@ -2,6 +2,70 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 /**
+ * Attempt to capture the on-screen invoice preview directly so the PDF matches
+ * exactly what the user sees. Falls back to the template renderer when the
+ * preview is unavailable (for example when generating invoices outside of the
+ * InvoiceView page).
+ */
+const tryRenderExistingPreviewToPDF = async () => {
+  const preview = document.querySelector('.invoice-preview-canvas');
+
+  if (!preview) {
+    return null;
+  }
+
+  const rect = preview.getBoundingClientRect();
+  const width = Math.round(rect.width);
+  const height = Math.round(rect.height);
+
+  if (!width || !height) {
+    return null;
+  }
+
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'fixed';
+  wrapper.style.pointerEvents = 'none';
+  wrapper.style.opacity = '0';
+  wrapper.style.left = '-10000px';
+  wrapper.style.top = '0';
+  wrapper.style.background = '#ffffff';
+
+  const clone = preview.cloneNode(true);
+  clone.style.margin = '0';
+  clone.style.boxShadow = 'none';
+  clone.style.background = '#ffffff';
+  clone.style.width = `${width}px`;
+  clone.style.height = `${height}px`;
+
+  wrapper.appendChild(clone);
+  document.body.appendChild(wrapper);
+
+  try {
+    const canvas = await html2canvas(clone, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      width,
+      height,
+      scrollX: 0,
+      scrollY: 0
+    });
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    const imageData = canvas.toDataURL('image/png');
+    pdf.addImage(imageData, 'PNG', 0, 0, pageWidth, pageHeight);
+
+    return pdf;
+  } finally {
+    document.body.removeChild(wrapper);
+  }
+};
+
+/**
  * Measure actual heights of all items and group into pages
  */
 const measureItemsAndCreatePages = async (invoiceData, templateData) => {
@@ -112,13 +176,29 @@ const measureItemsAndCreatePages = async (invoiceData, templateData) => {
  * Supports multi-page for long item lists with smart pagination
  */
 export const generateInvoicePDF = async (invoiceData, templateData) => {
+  // Measure items and create pages dynamically first so we know when we need
+  // multi-page output. If we detect more than one page we should skip trying to
+  // capture the single-page preview DOM because it can't display subsequent pages.
+  const itemPages = await measureItemsAndCreatePages(invoiceData, templateData);
+  const totalPages = itemPages.length;
+
+  if (totalPages === 1) {
+    let directPreviewPDF = null;
+
+    try {
+      directPreviewPDF = await tryRenderExistingPreviewToPDF();
+    } catch (error) {
+      console.warn('Falling back to template render for PDF generation:', error);
+    }
+
+    if (directPreviewPDF) {
+      return directPreviewPDF;
+    }
+  }
+
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pageWidth = 210; // A4 width in mm
   const pageHeight = 297; // A4 height in mm
-  
-  // Measure items and create pages dynamically
-  const itemPages = await measureItemsAndCreatePages(invoiceData, templateData);
-  const totalPages = itemPages.length;
 
   for (let page = 0; page < totalPages; page++) {
     if (page > 0) {
