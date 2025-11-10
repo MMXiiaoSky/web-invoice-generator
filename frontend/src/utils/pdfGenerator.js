@@ -296,7 +296,7 @@ const createItemRow = (item, displayIndex, fontSize) => {
 
   row.innerHTML = `
     <td style="padding: 8px; text-align: left; border: none; background: transparent; vertical-align: top;">${displayIndex}</td>
-    <td style="padding: 8px; text-align: left; border: none; background: transparent; vertical-align: top; word-wrap: break-word; white-space: normal; line-height: 1.4;">${descriptionHTML}</td>
+    <td style="padding: 8px; text-align: left; border: none; background: transparent; vertical-align: top; word-wrap: break-word; white-space: pre-wrap; line-height: 1.4;">${descriptionHTML}</td>
     <td style="padding: 8px; text-align: right; border: none; background: transparent; vertical-align: top;">${formatCurrency(
       item.unit_price
     )}</td>
@@ -341,7 +341,8 @@ const paginateInvoiceIntoPages = (invoiceData, templateData) => {
       return;
     }
 
-    let row = createItemRow(item, index + 1, currentPage.itemsFontSize);
+    const displayIndex = index + 1;
+    let row = createItemRow(item, displayIndex, currentPage.itemsFontSize);
     currentPage.itemsBody.appendChild(row);
 
     const overflow =
@@ -355,7 +356,7 @@ const paginateInvoiceIntoPages = (invoiceData, templateData) => {
       pages.push(currentPage);
 
       if (currentPage.itemsBody && currentPage.itemsContainer) {
-        row = createItemRow(item, index + 1, currentPage.itemsFontSize);
+        row = createItemRow(item, displayIndex, currentPage.itemsFontSize);
         currentPage.itemsBody.appendChild(row);
       }
     }
@@ -365,11 +366,21 @@ const paginateInvoiceIntoPages = (invoiceData, templateData) => {
     const isLast = pageIndex === pages.length - 1;
 
     if (pageContext.totalsElement) {
-      pageContext.totalsElement.style.display = isLast ? 'block' : 'none';
+      if (isLast) {
+        pageContext.totalsElement.style.display = 'block';
+      } else {
+        pageContext.totalsElement.parentNode?.removeChild(pageContext.totalsElement);
+        pageContext.totalsElement = null;
+      }
     }
 
     if (pageContext.remarksElement) {
-      pageContext.remarksElement.style.display = isLast ? 'block' : 'none';
+      if (isLast) {
+        pageContext.remarksElement.style.display = 'block';
+      } else {
+        pageContext.remarksElement.parentNode?.removeChild(pageContext.remarksElement);
+        pageContext.remarksElement = null;
+      }
     }
   });
 
