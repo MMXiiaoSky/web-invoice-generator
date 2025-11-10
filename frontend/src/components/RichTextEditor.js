@@ -8,6 +8,7 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
   const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
   const [currentFontSize, setCurrentFontSize] = useState('12');
   const selectionRef = useRef(null);
+  const preserveSelectionRef = useRef(false);
 
   useEffect(() => {
     if (editorRef.current && content !== editorRef.current.innerHTML) {
@@ -39,11 +40,15 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
   };
 
   const restoreSelection = () => {
-    if (selectionRef.current) {
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(selectionRef.current);
-    }
+    if (!selectionRef.current) return;
+
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    selection.removeAllRanges();
+    const range = selectionRef.current.cloneRange();
+    selection.addRange(range);
+    selectionRef.current = range;
   };
 
   const ensureSelectionActive = () => {
@@ -62,12 +67,40 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
     });
   };
 
+  useEffect(() => {
+    const handleDocumentSelectionChange = () => {
+      if (!preserveSelectionRef.current || !selectionRef.current) {
+        return;
+      }
+
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) {
+        restoreSelection();
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      if (
+        !editorRef.current ||
+        !editorRef.current.contains(range.commonAncestorContainer)
+      ) {
+        restoreSelection();
+      }
+    };
+
+    document.addEventListener('selectionchange', handleDocumentSelectionChange);
+    return () => {
+      document.removeEventListener('selectionchange', handleDocumentSelectionChange);
+    };
+  }, []);
+
   const handleSelectionChange = () => {
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
       const range = selection.getRangeAt(0);
       if (!editorRef.current.contains(range.commonAncestorContainer)) {
         setToolbarVisible(false);
+        preserveSelectionRef.current = false;
         return;
       }
 
@@ -95,6 +128,7 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
       updateCurrentFontSize(selection);
     } else {
       setToolbarVisible(false);
+      preserveSelectionRef.current = false;
     }
   };
   
@@ -117,19 +151,26 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
     if (editorRef.current) onChange(editorRef.current.innerHTML);
   };
 
-  const formatText = (command, value = null) => {
+  const focusEditorWithSelection = () => {
+    preserveSelectionRef.current = false;
     restoreSelection();
+    if (editorRef.current) {
+      editorRef.current.focus({ preventScroll: true });
+    }
+  };
+
+  const formatText = (command, value = null) => {
+    focusEditorWithSelection();
     document.execCommand(command, false, value);
     handleInput();
     ensureSelectionActive();
-    editorRef.current.focus();
   };
 
   const changeFontSize = (size) => {
     const newSize = parseInt(size, 10);
     if (isNaN(newSize) || newSize < 1) return;
 
-    restoreSelection();
+    focusEditorWithSelection();
 
     const sizeInPx = `${newSize}px`;
     document.execCommand('styleWithCSS', false, false);
@@ -144,7 +185,6 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
     setCurrentFontSize(String(newSize));
     handleInput();
     ensureSelectionActive();
-    editorRef.current.focus();
   };
 
   const handleFontSizeChange = (event) => {
@@ -152,6 +192,7 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
     setCurrentFontSize(value);
 
     if (event.nativeEvent?.inputType === 'insertReplacementText') {
+      preserveSelectionRef.current = false;
       changeFontSize(value);
     }
   };
@@ -183,13 +224,25 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
               list="font-sizes-floating"
               type="text"
               value={currentFontSize}
-              onMouseDown={saveSelection}
-              onFocus={saveSelection}
+              onMouseDown={(e) => {
+                preserveSelectionRef.current = true;
+                saveSelection();
+                requestAnimationFrame(() => restoreSelection());
+              }}
+              onFocus={(e) => {
+                preserveSelectionRef.current = true;
+                saveSelection();
+                requestAnimationFrame(() => restoreSelection());
+              }}
               onChange={handleFontSizeChange}
-              onBlur={(e) => changeFontSize(e.target.value)}
+              onBlur={(e) => {
+                preserveSelectionRef.current = false;
+                changeFontSize(e.target.value);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
+                  preserveSelectionRef.current = false;
                   changeFontSize(e.target.value);
                 }
               }}
