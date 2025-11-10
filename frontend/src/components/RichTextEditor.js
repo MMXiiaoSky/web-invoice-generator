@@ -117,7 +117,12 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
     handleInput();
   };
 
-  const handleToolbarMouseDown = (e) => e.preventDefault();
+  const handleToolbarMouseDown = (e) => {
+    const target = e.target;
+    if (!(target instanceof Element) || !target.closest('input')) {
+      e.preventDefault();
+    }
+  };
 
   return (
     <div className="rich-text-editor-container">
