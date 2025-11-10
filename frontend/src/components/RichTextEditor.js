@@ -227,9 +227,67 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
 
   const handleToolbarMouseDown = (e) => {
     const target = e.target;
-    if (!(target instanceof Element) || !target.closest('input')) {
+    if (!(target instanceof Element)) {
+      e.preventDefault();
+      return;
+    }
+
+    if (!target.closest('input, select')) {
       e.preventDefault();
     }
+  };
+
+  const insertPlaceholder = (placeholderValue) => {
+    if (!placeholderValue) return;
+
+    focusEditorWithSelection();
+
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    if (selection.rangeCount === 0) {
+      const range = document.createRange();
+      range.selectNodeContents(editorRef.current);
+      range.collapse(false);
+      selection.addRange(range);
+    }
+
+    let range = selection.getRangeAt(0);
+
+    if (
+      editorRef.current &&
+      !editorRef.current.contains(range.commonAncestorContainer)
+    ) {
+      range = document.createRange();
+      range.selectNodeContents(editorRef.current);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    range.deleteContents();
+    const textNode = document.createTextNode(placeholderValue);
+    range.insertNode(textNode);
+
+    range = range.cloneRange();
+    range.setStartAfter(textNode);
+    range.collapse(true);
+
+    selection.removeAllRanges();
+    selection.addRange(range);
+    selectionRef.current = range.cloneRange();
+
+    handleInput();
+    ensureSelectionActive();
+  };
+
+  const handlePlaceholderSelect = (event) => {
+    const value = event.target.value;
+    if (!value) return;
+
+    insertPlaceholder(value);
+    event.target.value = '';
+    preserveSelectionRef.current = false;
   };
 
   return (
@@ -281,17 +339,44 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
           </div>
         </div>
       )}
-      
-      <div 
-        ref={editorRef} 
-        contentEditable 
-        onInput={handleInput} 
+
+      <div
+        ref={editorRef}
+        contentEditable
+        onInput={handleInput}
         onBlur={saveSelection}
         onMouseUp={handleSelectionChange}
         onKeyUp={handleSelectionChange}
-        className="editor-content" 
-        suppressContentEditableWarning 
+        className="editor-content"
+        suppressContentEditableWarning
       />
+      {Array.isArray(placeholders) && placeholders.length > 0 && (
+        <div className="placeholder-controls">
+          <label htmlFor="placeholder-select" className="placeholder-label">Insert placeholder</label>
+          <select
+            id="placeholder-select"
+            className="placeholder-select"
+            defaultValue=""
+            onMouseDown={() => {
+              preserveSelectionRef.current = true;
+              saveSelection();
+            }}
+            onFocus={() => {
+              preserveSelectionRef.current = true;
+              saveSelection();
+            }}
+            onBlur={() => {
+              preserveSelectionRef.current = false;
+            }}
+            onChange={handlePlaceholderSelect}
+          >
+            <option value="" disabled>Choose placeholder…</option>
+            {placeholders.map(({ label, value }) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </div>
+      )}
     </div>
   );
 };
