@@ -1,7 +1,14 @@
-import React from 'react';
 import './InvoicePreview.css';
 
-const InvoicePreview = ({ invoice, templateData }) => {
+const InvoicePreview = ({
+  invoice,
+  templateData,
+  itemsOverride,
+  itemStartIndex = 0,
+  hideTotals = false,
+  hideRemarks = false,
+  disableShadow = false
+}) => {
   const A4_WIDTH = 794;
   const A4_HEIGHT = 1123;
 
@@ -19,6 +26,9 @@ const InvoicePreview = ({ invoice, templateData }) => {
     switch (element.type) {
       case 'text':
       case 'remarksBlock': {
+        if (hideRemarks && element.type === 'remarksBlock') {
+          return null;
+        }
         let displayHTML = element.content || (element.type === 'text' ? 'Text' : 'Remarks');
         const placeholderData = {
           '{company_name}': invoice.company_name || '',
@@ -61,6 +71,12 @@ const InvoicePreview = ({ invoice, templateData }) => {
         );
 
       case 'itemsTable':
+        const itemsToRender = Array.isArray(itemsOverride)
+          ? itemsOverride
+          : Array.isArray(invoice.items)
+          ? invoice.items
+          : [];
+
         return (
           <table style={{ width: '100%', fontSize: `${element.fontSize}px`, background: 'transparent', borderCollapse: 'collapse', border: 'none' }}>
             <thead>
@@ -73,9 +89,9 @@ const InvoicePreview = ({ invoice, templateData }) => {
               </tr>
             </thead>
             <tbody>
-              {invoice.items.map((item, index) => (
+              {itemsToRender.map((item, index) => (
                 <tr key={index} style={{ background: 'transparent', border: 'none' }}>
-                  <td style={{ padding: '8px', textAlign: 'left', verticalAlign: 'top' }}>{index + 1}</td>
+                  <td style={{ padding: '8px', textAlign: 'left', verticalAlign: 'top' }}>{itemStartIndex + index + 1}</td>
                   <td style={{ padding: '8px', textAlign: 'left', verticalAlign: 'top', whiteSpace: 'pre-wrap', wordWrap: 'break-word', lineHeight: '1.4' }}>{item.description}</td>
                   <td style={{ padding: '8px', textAlign: 'right', verticalAlign: 'top' }}>{formatCurrency(item.unit_price)}</td>
                   <td style={{ padding: '8px', textAlign: 'center', verticalAlign: 'top' }}>{item.quantity}</td>
@@ -87,6 +103,9 @@ const InvoicePreview = ({ invoice, templateData }) => {
         );
 
       case 'totalsBlock':
+        if (hideTotals) {
+          return null;
+        }
         return (
           <div style={{ textAlign: 'right' }}>
             <strong style={{ fontSize: `${element.fontSize + 4}px` }}>Total: {formatCurrency(invoice.total)}</strong>
@@ -105,6 +124,10 @@ const InvoicePreview = ({ invoice, templateData }) => {
   };
 
   const renderElement = (element) => {
+    if ((hideTotals && element.type === 'totalsBlock') || (hideRemarks && element.type === 'remarksBlock')) {
+      return null;
+    }
+
     return (
       <div
         key={element.id}
@@ -155,7 +178,7 @@ const InvoicePreview = ({ invoice, templateData }) => {
           height: `${A4_HEIGHT}px`,
           position: 'relative',
           background: 'white',
-          boxShadow: '0 0 20px rgba(0,0,0,0.1)',
+          boxShadow: disableShadow ? 'none' : '0 0 20px rgba(0,0,0,0.1)',
           margin: '0 auto'
         }}
       >

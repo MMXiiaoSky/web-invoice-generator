@@ -323,128 +323,172 @@ const paginateInvoiceIntoPages = (invoiceData, templateData) => {
   wrapper.style.background = '#ffffff';
   document.body.appendChild(wrapper);
 
-  const hasItemsTable = (templateData.elements || []).some((el) => el.type === 'itemsTable');
-  const pages = [];
+  try {
+    const items = Array.isArray(invoiceData.items) ? invoiceData.items : [];
+    const hasItemsTable = (templateData.elements || []).some((el) => el.type === 'itemsTable');
 
-  let currentPage = createBasePage(templateData, invoiceData);
-  wrapper.appendChild(currentPage.page);
-  pages.push(currentPage);
-
-  if (!hasItemsTable) {
-    return { wrapper, pages };
-  }
-
-  const items = Array.isArray(invoiceData.items) ? invoiceData.items : [];
-
-  items.forEach((item, index) => {
-    if (!currentPage.itemsBody || !currentPage.itemsContainer) {
-      return;
+    if (!hasItemsTable) {
+      return [
+        {
+          items,
+          startIndex: 0
+        }
+      ];
     }
 
-    const displayIndex = index + 1;
-    let row = createItemRow(item, displayIndex, currentPage.itemsFontSize);
-    currentPage.itemsBody.appendChild(row);
+    let currentPage = createBasePage(templateData, invoiceData);
+    wrapper.appendChild(currentPage.page);
 
-    const overflow =
-      currentPage.itemsContainer.scrollHeight - currentPage.itemsContainer.clientHeight > 1;
+    const pages = [];
+    let currentItems = [];
+    let currentStartIndex = 0;
 
-    if (overflow) {
-      currentPage.itemsBody.removeChild(row);
+    items.forEach((item, index) => {
+      if (!currentPage.itemsBody || !currentPage.itemsContainer) {
+        return;
+      }
 
-      currentPage = createBasePage(templateData, invoiceData);
-      wrapper.appendChild(currentPage.page);
-      pages.push(currentPage);
+      let row = createItemRow(item, index + 1, currentPage.itemsFontSize);
+      currentPage.itemsBody.appendChild(row);
 
-      if (currentPage.itemsBody && currentPage.itemsContainer) {
-        row = createItemRow(item, displayIndex, currentPage.itemsFontSize);
+      const overflow =
+        currentPage.itemsContainer.scrollHeight - currentPage.itemsContainer.clientHeight > 1;
+
+      if (overflow && currentItems.length > 0) {
+        currentPage.itemsBody.removeChild(row);
+
+        pages.push({
+          items: currentItems,
+          startIndex: currentStartIndex
+        });
+
+        currentStartIndex += currentItems.length;
+        currentItems = [];
+
+        currentPage = createBasePage(templateData, invoiceData);
+        wrapper.appendChild(currentPage.page);
+
+        row = createItemRow(item, index + 1, currentPage.itemsFontSize);
         currentPage.itemsBody.appendChild(row);
       }
-    }
-  });
 
-  pages.forEach((pageContext, pageIndex) => {
-    const isLast = pageIndex === pages.length - 1;
+      currentItems.push(item);
+    });
 
-    if (pageContext.totalsElement) {
-      if (isLast) {
-        pageContext.totalsElement.style.display = 'block';
-      } else {
-        pageContext.totalsElement.parentNode?.removeChild(pageContext.totalsElement);
-        pageContext.totalsElement = null;
-      }
+    if (currentItems.length > 0 || pages.length === 0) {
+      pages.push({
+        items: currentItems,
+        startIndex: currentStartIndex
+      });
     }
 
-    if (pageContext.remarksElement) {
-      if (isLast) {
-        pageContext.remarksElement.style.display = 'block';
-      } else {
-        pageContext.remarksElement.parentNode?.removeChild(pageContext.remarksElement);
-        pageContext.remarksElement = null;
-      }
+    return pages;
+  } finally {
+    if (wrapper.parentNode) {
+      wrapper.parentNode.removeChild(wrapper);
     }
-  });
+  }
+};
 
-  return { wrapper, pages };
+const renderPageToCanvas = async (invoiceData, templateData, pageConfig, isLastPage) => {
+  const host = document.createElement('div');
+  host.style.position = 'fixed';
+  host.style.left = '-10000px';
+  host.style.top = '0';
+  host.style.width = `${A4_WIDTH_PX}px`;
+  host.style.height = `${A4_HEIGHT_PX}px`;
+  host.style.pointerEvents = 'none';
+  host.style.opacity = '0';
+  host.style.background = '#ffffff';
+
+  const { page, itemsBody, itemsFontSize, remarksElement, totalsElement } = createBasePage(
+    templateData,
+    invoiceData
+  );
+
+  if (!isLastPage) {
+    if (remarksElement && remarksElement.parentNode) {
+      remarksElement.parentNode.removeChild(remarksElement);
+    }
+    if (totalsElement && totalsElement.parentNode) {
+      totalsElement.parentNode.removeChild(totalsElement);
+    }
+  }
+
+  if (itemsBody) {
+    itemsBody.innerHTML = '';
+    const items = Array.isArray(pageConfig.items) ? pageConfig.items : [];
+    items.forEach((item, index) => {
+      const displayIndex = pageConfig.startIndex + index + 1;
+      const row = createItemRow(item, displayIndex, itemsFontSize);
+      itemsBody.appendChild(row);
+    });
+  }
+
+  host.appendChild(page);
+  document.body.appendChild(host);
+
+  try {
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    const canvas = await html2canvas(page, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      width: A4_WIDTH_PX,
+      height: A4_HEIGHT_PX,
+      windowWidth: A4_WIDTH_PX,
+      windowHeight: A4_HEIGHT_PX,
+      x: 0,
+      y: 0,
+      scrollX: 0,
+      scrollY: 0,
+      backgroundColor: '#ffffff'
+    });
+
+    return canvas;
+  } finally {
+    if (host.parentNode) {
+      host.parentNode.removeChild(host);
+    }
+  }
 };
 
 /**
  * Generate PDF from invoice template
  */
 export const generateInvoicePDF = async (invoiceData, templateData) => {
-  const pagination = paginateInvoiceIntoPages(invoiceData, templateData);
-  const totalPages = pagination.pages.length;
+  const pages = paginateInvoiceIntoPages(invoiceData, templateData);
+  const totalPages = pages.length;
 
-  try {
-    if (totalPages === 1) {
-      let directPreviewPDF = null;
-
-      try {
-        directPreviewPDF = await tryRenderExistingPreviewToPDF();
-      } catch (error) {
-        console.warn('Falling back to template render for PDF generation:', error);
-      }
-
+  if (totalPages === 1) {
+    try {
+      const directPreviewPDF = await tryRenderExistingPreviewToPDF();
       if (directPreviewPDF) {
         return directPreviewPDF;
       }
-    }
-
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageWidth = 210;
-    const pageHeight = 297;
-
-    for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
-      if (pageIndex > 0) {
-        pdf.addPage();
-      }
-
-      const pageContext = pagination.pages[pageIndex];
-
-      const canvas = await html2canvas(pageContext.page, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        width: A4_WIDTH_PX,
-        height: A4_HEIGHT_PX,
-        windowWidth: A4_WIDTH_PX,
-        windowHeight: A4_HEIGHT_PX,
-        x: 0,
-        y: 0,
-        scrollX: 0,
-        scrollY: 0,
-        backgroundColor: '#ffffff'
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
-    }
-
-    return pdf;
-  } finally {
-    if (pagination.wrapper && pagination.wrapper.parentNode) {
-      pagination.wrapper.parentNode.removeChild(pagination.wrapper);
+    } catch (error) {
+      console.warn('Falling back to template render for PDF generation:', error);
     }
   }
+
+  const pdf = new jsPDF('p', 'mm', 'a4');
+  const pageWidth = 210;
+  const pageHeight = 297;
+
+  for (let index = 0; index < totalPages; index++) {
+    if (index > 0) {
+      pdf.addPage();
+    }
+
+    const page = pages[index];
+    const isLastPage = index === totalPages - 1;
+    const canvas = await renderPageToCanvas(invoiceData, templateData, page, isLastPage);
+    const imgData = canvas.toDataURL('image/png');
+    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
+  }
+
+  return pdf;
 };
 
 /**
