@@ -38,12 +38,15 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
 
   const handleSelectionChange = () => {
     const selection = window.getSelection();
-    if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+    if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
       const range = selection.getRangeAt(0);
       if (!editorRef.current.contains(range.commonAncestorContainer)) {
         setToolbarVisible(false);
         return;
       }
+
+      // Persist the current selection so formatting commands keep working
+      selectionRef.current = range.cloneRange();
 
       const rect = range.getBoundingClientRect();
       const editorRect = editorRef.current.getBoundingClientRect();
@@ -136,6 +139,7 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
               list="font-sizes-floating"
               type="text"
               value={currentFontSize}
+              onMouseDown={saveSelection}
               onFocus={saveSelection}
               onChange={(e) => setCurrentFontSize(e.target.value)}
               onBlur={(e) => changeFontSize(e.target.value)}
