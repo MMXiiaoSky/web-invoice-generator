@@ -8,6 +8,7 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
   const [toolbarPosition, setToolbarPosition] = useState({ top: 0, left: 0 });
   const [currentFontSize, setCurrentFontSize] = useState('12');
   const selectionRef = useRef(null);
+  const preserveSelectionRef = useRef(false);
 
   useEffect(() => {
     if (editorRef.current && content !== editorRef.current.innerHTML) {
@@ -23,39 +24,129 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
 
   const saveSelection = () => {
     const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-      selectionRef.current = selection.getRangeAt(0).cloneRange();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    if (range.collapsed) return;
+
+    if (
+      editorRef.current &&
+      !editorRef.current.contains(range.commonAncestorContainer)
+    ) {
+      return;
     }
+
+    selectionRef.current = range.cloneRange();
   };
 
   const restoreSelection = () => {
-    if (selectionRef.current) {
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(selectionRef.current);
-    }
+    if (!selectionRef.current) return;
+
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    selection.removeAllRanges();
+    const range = selectionRef.current.cloneRange();
+    selection.addRange(range);
+    selectionRef.current = range;
   };
+
+  const ensureSelectionActive = () => {
+    requestAnimationFrame(() => {
+      const selection = window.getSelection();
+
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        restoreSelection();
+      }
+
+      const refreshedSelection = window.getSelection();
+      if (refreshedSelection && refreshedSelection.rangeCount > 0) {
+        selectionRef.current = refreshedSelection.getRangeAt(0).cloneRange();
+        updateCurrentFontSize(refreshedSelection);
+      }
+    });
+  };
+
+  useEffect(() => {
+    const isToolbarInputActive = () => {
+      const active = document.activeElement;
+      return (
+        active instanceof HTMLInputElement &&
+        toolbarRef.current &&
+        toolbarRef.current.contains(active)
+      );
+    };
+
+    const handleDocumentSelectionChange = () => {
+      if (!preserveSelectionRef.current || !selectionRef.current) {
+        return;
+      }
+
+      if (isToolbarInputActive()) {
+        return;
+      }
+
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) {
+        restoreSelection();
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      if (
+        !editorRef.current ||
+        !editorRef.current.contains(range.commonAncestorContainer)
+      ) {
+        restoreSelection();
+      }
+    };
+
+    document.addEventListener('selectionchange', handleDocumentSelectionChange);
+    return () => {
+      document.removeEventListener('selectionchange', handleDocumentSelectionChange);
+    };
+  }, []);
 
   const handleSelectionChange = () => {
     const selection = window.getSelection();
-    if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+    if (
+      preserveSelectionRef.current &&
+      (!selection || selection.rangeCount === 0 || selection.isCollapsed)
+    ) {
+      restoreSelection();
+      return;
+    }
+
+    if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
       const range = selection.getRangeAt(0);
       if (!editorRef.current.contains(range.commonAncestorContainer)) {
         setToolbarVisible(false);
+        preserveSelectionRef.current = false;
         return;
       }
+
+      // Persist the current selection so formatting commands keep working
+      selectionRef.current = range.cloneRange();
 
       const rect = range.getBoundingClientRect();
       const editorRect = editorRef.current.getBoundingClientRect();
 
       let left = rect.left + window.scrollX + rect.width / 2;
-      
-      // Prevent toolbar from going off-screen
-      if (toolbarRef.current) {
-        const toolbarWidth = toolbarRef.current.offsetWidth;
-        const minLeft = toolbarWidth / 2 + 10;
-        const maxLeft = window.innerWidth - toolbarWidth / 2 - 10;
+
+      // Prevent toolbar from going outside the editor bounds
+      const measuredWidth = toolbarRef.current?.offsetWidth ?? 0;
+      const toolbarWidth = measuredWidth || 240;
+      const editorLeft = editorRect.left + window.scrollX;
+      const editorRight = editorRect.right + window.scrollX;
+      const horizontalPadding = 12;
+      const minLeft = editorLeft + toolbarWidth / 2 + horizontalPadding;
+      const maxLeft = editorRight - toolbarWidth / 2 - horizontalPadding;
+
+      if (minLeft <= maxLeft) {
         left = Math.max(minLeft, Math.min(left, maxLeft));
+      } else {
+        const editorCenter = editorLeft + (editorRight - editorLeft) / 2;
+        left = editorCenter;
       }
 
       setToolbarPosition({
@@ -66,6 +157,7 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
       updateCurrentFontSize(selection);
     } else {
       setToolbarVisible(false);
+      preserveSelectionRef.current = false;
     }
   };
   
@@ -88,21 +180,28 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
     if (editorRef.current) onChange(editorRef.current.innerHTML);
   };
 
-  const formatText = (command, value = null) => {
+  const focusEditorWithSelection = () => {
     restoreSelection();
+    if (editorRef.current) {
+      editorRef.current.focus({ preventScroll: true });
+    }
+  };
+
+  const formatText = (command, value = null) => {
+    focusEditorWithSelection();
     document.execCommand(command, false, value);
     handleInput();
-    editorRef.current.focus();
+    ensureSelectionActive();
   };
 
   const changeFontSize = (size) => {
-    const newSize = parseInt(size);
+    const newSize = parseInt(size, 10);
     if (isNaN(newSize) || newSize < 1) return;
-    
-    restoreSelection();
-    
+
+    focusEditorWithSelection();
+
     const sizeInPx = `${newSize}px`;
-    document.execCommand('styleWithCSS', false, true);
+    document.execCommand('styleWithCSS', false, false);
     document.execCommand('fontSize', false, '1');
     const fontElements = editorRef.current.getElementsByTagName('font');
     while (fontElements.length > 0) {
@@ -111,10 +210,27 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
       span.innerHTML = fontElements[0].innerHTML;
       fontElements[0].parentNode.replaceChild(span, fontElements[0]);
     }
+    setCurrentFontSize(String(newSize));
     handleInput();
+    ensureSelectionActive();
   };
 
-  const handleToolbarMouseDown = (e) => e.preventDefault();
+  const handleFontSizeChange = (event) => {
+    const { value } = event.target;
+    setCurrentFontSize(value);
+
+    if (event.nativeEvent?.inputType === 'insertReplacementText') {
+      preserveSelectionRef.current = false;
+      changeFontSize(value);
+    }
+  };
+
+  const handleToolbarMouseDown = (e) => {
+    const target = e.target;
+    if (!(target instanceof Element) || !target.closest('input')) {
+      e.preventDefault();
+    }
+  };
 
   return (
     <div className="rich-text-editor-container">
@@ -136,12 +252,23 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
               list="font-sizes-floating"
               type="text"
               value={currentFontSize}
-              onFocus={saveSelection}
-              onChange={(e) => setCurrentFontSize(e.target.value)}
-              onBlur={(e) => changeFontSize(e.target.value)}
+              onMouseDown={() => {
+                preserveSelectionRef.current = true;
+                saveSelection();
+              }}
+              onFocus={() => {
+                preserveSelectionRef.current = true;
+                saveSelection();
+              }}
+              onChange={handleFontSizeChange}
+              onBlur={(e) => {
+                preserveSelectionRef.current = false;
+                changeFontSize(e.target.value);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
+                  preserveSelectionRef.current = false;
                   changeFontSize(e.target.value);
                 }
               }}
