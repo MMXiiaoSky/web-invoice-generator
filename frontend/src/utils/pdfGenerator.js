@@ -1,3 +1,5 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import {
@@ -103,8 +105,7 @@ const renderPageToCanvas = async (invoiceData, templateData, pageConfig) => {
       x: 0,
       y: 0,
       scrollX: 0,
-      scrollY: 0,
-      backgroundColor: '#ffffff'
+      scrollY: 0
     });
 
     return canvas;
