@@ -36,14 +36,33 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
     }
   };
 
+  const ensureSelectionActive = () => {
+    requestAnimationFrame(() => {
+      const selection = window.getSelection();
+
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        restoreSelection();
+      }
+
+      const refreshedSelection = window.getSelection();
+      if (refreshedSelection && refreshedSelection.rangeCount > 0) {
+        selectionRef.current = refreshedSelection.getRangeAt(0).cloneRange();
+        updateCurrentFontSize(refreshedSelection);
+      }
+    });
+  };
+
   const handleSelectionChange = () => {
     const selection = window.getSelection();
-    if (selection && !selection.isCollapsed && selection.rangeCount > 0) {
+    if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
       const range = selection.getRangeAt(0);
       if (!editorRef.current.contains(range.commonAncestorContainer)) {
         setToolbarVisible(false);
         return;
       }
+
+      // Persist the current selection so formatting commands keep working
+      selectionRef.current = range.cloneRange();
 
       const rect = range.getBoundingClientRect();
       const editorRect = editorRef.current.getBoundingClientRect();
@@ -92,17 +111,18 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
     restoreSelection();
     document.execCommand(command, false, value);
     handleInput();
+    ensureSelectionActive();
     editorRef.current.focus();
   };
 
   const changeFontSize = (size) => {
-    const newSize = parseInt(size);
+    const newSize = parseInt(size, 10);
     if (isNaN(newSize) || newSize < 1) return;
-    
+
     restoreSelection();
-    
+
     const sizeInPx = `${newSize}px`;
-    document.execCommand('styleWithCSS', false, true);
+    document.execCommand('styleWithCSS', false, false);
     document.execCommand('fontSize', false, '1');
     const fontElements = editorRef.current.getElementsByTagName('font');
     while (fontElements.length > 0) {
@@ -111,10 +131,27 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
       span.innerHTML = fontElements[0].innerHTML;
       fontElements[0].parentNode.replaceChild(span, fontElements[0]);
     }
+    setCurrentFontSize(String(newSize));
     handleInput();
+    ensureSelectionActive();
+    editorRef.current.focus();
   };
 
-  const handleToolbarMouseDown = (e) => e.preventDefault();
+  const handleFontSizeChange = (event) => {
+    const { value } = event.target;
+    setCurrentFontSize(value);
+
+    if (event.nativeEvent?.inputType === 'insertReplacementText') {
+      changeFontSize(value);
+    }
+  };
+
+  const handleToolbarMouseDown = (e) => {
+    const target = e.target;
+    if (!(target instanceof Element) || !target.closest('input')) {
+      e.preventDefault();
+    }
+  };
 
   return (
     <div className="rich-text-editor-container">
@@ -136,8 +173,9 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
               list="font-sizes-floating"
               type="text"
               value={currentFontSize}
+              onMouseDown={saveSelection}
               onFocus={saveSelection}
-              onChange={(e) => setCurrentFontSize(e.target.value)}
+              onChange={handleFontSizeChange}
               onBlur={(e) => changeFontSize(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
