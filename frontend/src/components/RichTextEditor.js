@@ -68,8 +68,21 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
   };
 
   useEffect(() => {
+    const isToolbarInputActive = () => {
+      const active = document.activeElement;
+      return (
+        active instanceof HTMLInputElement &&
+        toolbarRef.current &&
+        toolbarRef.current.contains(active)
+      );
+    };
+
     const handleDocumentSelectionChange = () => {
       if (!preserveSelectionRef.current || !selectionRef.current) {
+        return;
+      }
+
+      if (isToolbarInputActive()) {
         return;
       }
 
@@ -231,15 +244,13 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
               list="font-sizes-floating"
               type="text"
               value={currentFontSize}
-              onMouseDown={(e) => {
+              onMouseDown={() => {
                 preserveSelectionRef.current = true;
                 saveSelection();
-                requestAnimationFrame(() => restoreSelection());
               }}
-              onFocus={(e) => {
+              onFocus={() => {
                 preserveSelectionRef.current = true;
                 saveSelection();
-                requestAnimationFrame(() => restoreSelection());
               }}
               onChange={handleFontSizeChange}
               onBlur={(e) => {
