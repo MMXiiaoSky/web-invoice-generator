@@ -96,6 +96,14 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
 
   const handleSelectionChange = () => {
     const selection = window.getSelection();
+    if (
+      preserveSelectionRef.current &&
+      (!selection || selection.rangeCount === 0 || selection.isCollapsed)
+    ) {
+      restoreSelection();
+      return;
+    }
+
     if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
       const range = selection.getRangeAt(0);
       if (!editorRef.current.contains(range.commonAncestorContainer)) {
@@ -152,7 +160,6 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
   };
 
   const focusEditorWithSelection = () => {
-    preserveSelectionRef.current = false;
     restoreSelection();
     if (editorRef.current) {
       editorRef.current.focus({ preventScroll: true });
