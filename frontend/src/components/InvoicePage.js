@@ -85,6 +85,7 @@ const InvoicePage = ({
 
         return (
           <table
+            className="invoice-page-items-table"
             style={{
               width: '100%',
               fontSize: `${element.fontSize}px`,
@@ -254,9 +255,17 @@ const InvoicePage = ({
       return null;
     }
 
+    const wrapperClassName = [
+      'invoice-page-element',
+      `invoice-page-element-${element.type}`
+    ].join(' ');
+
     return (
       <div
         key={element.id}
+        data-element-id={element.id}
+        data-element-type={element.type}
+        className={wrapperClassName}
         style={{
           position: 'absolute',
           left: `${element.x}px`,

@@ -50,6 +50,21 @@ const mountInvoicePage = async (invoiceData, templateData, config = {}) => {
   return { host, root, preview };
 };
 
+const nodeHasOverflow = (node) => {
+  if (!node) {
+    return false;
+  }
+
+  const verticalOverflow = node.scrollHeight - node.clientHeight > 1;
+  const horizontalOverflow = node.scrollWidth - node.clientWidth > 1;
+
+  if (verticalOverflow || horizontalOverflow) {
+    return true;
+  }
+
+  return false;
+};
+
 const previewHasOverflow = (preview) => {
   if (!preview) {
     return false;
@@ -80,7 +95,26 @@ const previewHasOverflow = (preview) => {
   const exceedsHeight = maxBottom - rect.top > rect.height + 1;
   const exceedsWidth = maxRight - rect.left > rect.width + 1;
 
-  return hasVerticalOverflow || hasHorizontalOverflow || exceedsHeight || exceedsWidth;
+  if (hasVerticalOverflow || hasHorizontalOverflow || exceedsHeight || exceedsWidth) {
+    return true;
+  }
+
+  const elementWrappers = preview.querySelectorAll('[data-element-id]');
+
+  for (const wrapper of elementWrappers) {
+    if (nodeHasOverflow(wrapper)) {
+      return true;
+    }
+
+    if (wrapper.dataset.elementType === 'itemsTable') {
+      const table = wrapper.querySelector('.invoice-page-items-table');
+      if (nodeHasOverflow(table)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 };
 
 const pageWouldOverflow = async (invoiceData, templateData, config) => {
