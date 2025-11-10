@@ -132,13 +132,21 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
       const editorRect = editorRef.current.getBoundingClientRect();
 
       let left = rect.left + window.scrollX + rect.width / 2;
-      
-      // Prevent toolbar from going off-screen
-      if (toolbarRef.current) {
-        const toolbarWidth = toolbarRef.current.offsetWidth;
-        const minLeft = toolbarWidth / 2 + 10;
-        const maxLeft = window.innerWidth - toolbarWidth / 2 - 10;
+
+      // Prevent toolbar from going outside the editor bounds
+      const measuredWidth = toolbarRef.current?.offsetWidth ?? 0;
+      const toolbarWidth = measuredWidth || 240;
+      const editorLeft = editorRect.left + window.scrollX;
+      const editorRight = editorRect.right + window.scrollX;
+      const horizontalPadding = 12;
+      const minLeft = editorLeft + toolbarWidth / 2 + horizontalPadding;
+      const maxLeft = editorRight - toolbarWidth / 2 - horizontalPadding;
+
+      if (minLeft <= maxLeft) {
         left = Math.max(minLeft, Math.min(left, maxLeft));
+      } else {
+        const editorCenter = editorLeft + (editorRight - editorLeft) / 2;
+        left = editorCenter;
       }
 
       setToolbarPosition({
