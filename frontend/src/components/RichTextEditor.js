@@ -23,9 +23,19 @@ const RichTextEditor = ({ content, onChange, placeholders, lineSpacing, onLineSp
 
   const saveSelection = () => {
     const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-      selectionRef.current = selection.getRangeAt(0).cloneRange();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    if (range.collapsed) return;
+
+    if (
+      editorRef.current &&
+      !editorRef.current.contains(range.commonAncestorContainer)
+    ) {
+      return;
     }
+
+    selectionRef.current = range.cloneRange();
   };
 
   const restoreSelection = () => {
