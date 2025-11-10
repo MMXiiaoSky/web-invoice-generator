@@ -133,11 +133,13 @@ const applyPlaceholders = (html = '', invoiceData = {}) => {
 
 const createBasePage = (templateData, invoiceData) => {
   const page = document.createElement('div');
+  page.className = 'invoice-preview-canvas pdf-export-page';
   page.style.width = `${A4_WIDTH_PX}px`;
   page.style.height = `${A4_HEIGHT_PX}px`;
   page.style.position = 'relative';
   page.style.background = '#ffffff';
   page.style.boxSizing = 'border-box';
+  page.style.boxShadow = 'none';
 
   const style = document.createElement('style');
   style.innerHTML = `
@@ -152,6 +154,11 @@ const createBasePage = (templateData, invoiceData) => {
       border-spacing: 0 !important;
     }
     div, p {
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    .rtx-content-wrapper p,
+    .rtx-content-wrapper div {
       margin: 0 !important;
       padding: 0 !important;
     }
@@ -187,8 +194,11 @@ const createBasePage = (templateData, invoiceData) => {
     switch (element.type) {
       case 'text':
       case 'remarksBlock': {
-        el.innerHTML = applyPlaceholders(element.content || '', invoiceData);
-        el.style.whiteSpace = 'pre-wrap';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'rtx-content-wrapper';
+        wrapper.style.whiteSpace = 'pre-wrap';
+        wrapper.innerHTML = applyPlaceholders(element.content || '', invoiceData);
+        el.appendChild(wrapper);
         if (element.type === 'remarksBlock') {
           context.remarksElement = el;
         }
