@@ -148,7 +148,10 @@ export const generateInvoicePDF = async (invoiceData, templateData) => {
 export const downloadPDF = async (invoiceData, templateData, filename) => {
   try {
     const pdf = await generateInvoicePDF(invoiceData, templateData);
-    pdf.save(filename || `invoice-${invoiceData.invoice_number}.pdf`);
+    const defaultName = invoiceData?.invoice_number
+      ? `Invoice_${invoiceData.invoice_number}.pdf`
+      : 'Invoice.pdf';
+    pdf.save(filename || defaultName);
   } catch (error) {
     console.error('Error generating PDF:', error);
     throw error;
