@@ -2,6 +2,8 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import InvoicePage, { A4_WIDTH_PX, A4_HEIGHT_PX } from '../components/InvoicePage';
 
+const MEASUREMENT_TOLERANCE = 1.5;
+
 const createHiddenHost = () => {
   const host = document.createElement('div');
   host.style.position = 'fixed';
@@ -55,14 +57,10 @@ const nodeHasOverflow = (node) => {
     return false;
   }
 
-  const verticalOverflow = node.scrollHeight - node.clientHeight > 1;
-  const horizontalOverflow = node.scrollWidth - node.clientWidth > 1;
+  const verticalOverflow = node.scrollHeight - node.clientHeight > MEASUREMENT_TOLERANCE;
+  const horizontalOverflow = node.scrollWidth - node.clientWidth > MEASUREMENT_TOLERANCE;
 
-  if (verticalOverflow || horizontalOverflow) {
-    return true;
-  }
-
-  return false;
+  return verticalOverflow || horizontalOverflow;
 };
 
 const previewHasOverflow = (preview) => {
@@ -70,58 +68,85 @@ const previewHasOverflow = (preview) => {
     return false;
   }
 
-  const rect = preview.getBoundingClientRect();
+  const wrappers = preview.querySelectorAll('[data-element-id]');
 
-  if (!rect.width || !rect.height) {
-    return false;
-  }
-
-  const hasVerticalOverflow = preview.scrollHeight - preview.clientHeight > 1;
-  const hasHorizontalOverflow = preview.scrollWidth - preview.clientWidth > 1;
-
-  let maxBottom = rect.top;
-  let maxRight = rect.left;
-
-  Array.from(preview.children).forEach((child) => {
-    const childRect = child.getBoundingClientRect();
-    if (childRect.bottom > maxBottom) {
-      maxBottom = childRect.bottom;
-    }
-    if (childRect.right > maxRight) {
-      maxRight = childRect.right;
-    }
-  });
-
-  const exceedsHeight = maxBottom - rect.top > rect.height + 1;
-  const exceedsWidth = maxRight - rect.left > rect.width + 1;
-
-  if (hasVerticalOverflow || hasHorizontalOverflow || exceedsHeight || exceedsWidth) {
-    return true;
-  }
-
-  const elementWrappers = preview.querySelectorAll('[data-element-id]');
-
-  for (const wrapper of elementWrappers) {
+  for (const wrapper of wrappers) {
     if (nodeHasOverflow(wrapper)) {
       return true;
-    }
-
-    if (wrapper.dataset.elementType === 'itemsTable') {
-      const table = wrapper.querySelector('.invoice-page-items-table');
-      if (nodeHasOverflow(table)) {
-        return true;
-      }
     }
   }
 
   return false;
 };
 
+const evaluateItemsFit = (preview, expectedCount) => {
+  const result = {
+    overflow: false,
+    fits: typeof expectedCount === 'number' ? expectedCount : 0
+  };
+
+  if (!preview) {
+    return result;
+  }
+
+  const tableWrapper = preview.querySelector('[data-element-type="itemsTable"]');
+
+  if (!tableWrapper) {
+    result.overflow = previewHasOverflow(preview);
+    return result;
+  }
+
+  const table = tableWrapper.querySelector('.invoice-page-items-table');
+
+  if (!table) {
+    result.overflow = previewHasOverflow(preview);
+    return result;
+  }
+
+  const wrapperRect = tableWrapper.getBoundingClientRect();
+  const rows = Array.from(table.querySelectorAll('tbody tr'));
+
+  result.fits = rows.length;
+
+  if (rows.length < expectedCount) {
+    result.overflow = true;
+  }
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const rowRect = rows[index].getBoundingClientRect();
+    const rowBottom = rowRect.bottom - wrapperRect.top;
+
+    if (rowBottom > wrapperRect.height + MEASUREMENT_TOLERANCE) {
+      result.overflow = true;
+      result.fits = index;
+      break;
+    }
+  }
+
+  if (!result.overflow) {
+    const tableRect = table.getBoundingClientRect();
+    const tableBottom = tableRect.bottom - wrapperRect.top;
+
+    if (tableBottom > wrapperRect.height + MEASUREMENT_TOLERANCE) {
+      result.overflow = true;
+    }
+  }
+
+  if (!result.overflow) {
+    result.overflow = previewHasOverflow(preview);
+  }
+
+  result.fits = Math.max(0, result.fits);
+
+  return result;
+};
+
 const pageWouldOverflow = async (invoiceData, templateData, config) => {
+  const expectedCount = Array.isArray(config?.items) ? config.items.length : 0;
   const { host, root, preview } = await mountInvoicePage(invoiceData, templateData, config);
 
   try {
-    return previewHasOverflow(preview);
+    return evaluateItemsFit(preview, expectedCount);
   } finally {
     disposeHiddenHost(host, root);
   }
@@ -172,9 +197,18 @@ const paginateInvoice = async (invoiceData, templateData) => {
         hideRemarks: !isFinalCandidate
       };
 
-      const overflow = await pageWouldOverflow(invoiceData, templateData, config);
+      const { overflow, fits } = await pageWouldOverflow(
+        invoiceData,
+        templateData,
+        config
+      );
 
       if (overflow) {
+        if (typeof fits === 'number' && fits > bestCount) {
+          bestCount = fits;
+          bestHideTotals = config.hideTotals;
+          bestHideRemarks = config.hideRemarks;
+        }
         break;
       }
 
@@ -185,14 +219,13 @@ const paginateInvoice = async (invoiceData, templateData) => {
 
     if (bestCount === 0) {
       const fallbackSubset = availableItems.slice(0, 1);
-      const canShowTotals =
-        availableItems.length === 1 &&
-        !(await pageWouldOverflow(invoiceData, templateData, {
-          items: fallbackSubset,
-          startIndex: indexOffset,
-          hideTotals: false,
-          hideRemarks: false
-        }));
+      const totalsCheck = await pageWouldOverflow(invoiceData, templateData, {
+        items: fallbackSubset,
+        startIndex: indexOffset,
+        hideTotals: false,
+        hideRemarks: false
+      });
+      const canShowTotals = availableItems.length === 1 && !totalsCheck.overflow;
 
       bestCount = 1;
       bestHideTotals = !canShowTotals;
@@ -224,7 +257,7 @@ const paginateInvoice = async (invoiceData, templateData) => {
     let finalPage = pages[pages.length - 1];
 
     while (finalPage && finalPage.hideTotals) {
-      const overflow = await pageWouldOverflow(invoiceData, templateData, {
+      const { overflow } = await pageWouldOverflow(invoiceData, templateData, {
         items: finalPage.items,
         startIndex: finalPage.startIndex,
         hideTotals: false,
