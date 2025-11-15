@@ -103,40 +103,42 @@ const evaluateItemsFit = (preview, expectedCount) => {
     return result;
   }
 
-  const wrapperRect = tableWrapper.getBoundingClientRect();
   const rows = Array.from(table.querySelectorAll('tbody tr'));
+  const wrapperClientHeight = tableWrapper.clientHeight;
+  const wrapperScrollHeight = tableWrapper.scrollHeight;
+  const header = table.querySelector('thead');
+  const headerHeight = header
+    ? header.getBoundingClientRect().height
+    : 0;
+  const availableRowHeight = Math.max(
+    0,
+    wrapperClientHeight - headerHeight
+  );
 
-  result.fits = rows.length;
+  let fits = rows.length;
 
-  if (rows.length < expectedCount) {
+  if (wrapperScrollHeight - wrapperClientHeight > MEASUREMENT_TOLERANCE) {
+    let consumed = 0;
+    fits = 0;
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const rowRect = rows[index].getBoundingClientRect();
+      const rowHeight = rowRect.height;
+
+      if (consumed + rowHeight > availableRowHeight + MEASUREMENT_TOLERANCE) {
+        break;
+      }
+
+      consumed += rowHeight;
+      fits += 1;
+    }
+
+    result.overflow = true;
+  } else if (rows.length < expectedCount) {
     result.overflow = true;
   }
 
-  for (let index = 0; index < rows.length; index += 1) {
-    const rowRect = rows[index].getBoundingClientRect();
-    const rowBottom = rowRect.bottom - wrapperRect.top;
-
-    if (rowBottom > wrapperRect.height + MEASUREMENT_TOLERANCE) {
-      result.overflow = true;
-      result.fits = index;
-      break;
-    }
-  }
-
-  if (!result.overflow) {
-    const tableRect = table.getBoundingClientRect();
-    const tableBottom = tableRect.bottom - wrapperRect.top;
-
-    if (tableBottom > wrapperRect.height + MEASUREMENT_TOLERANCE) {
-      result.overflow = true;
-    }
-  }
-
-  if (!result.overflow) {
-    result.overflow = previewHasOverflow(preview);
-  }
-
-  result.fits = Math.max(0, result.fits);
+  result.fits = Math.max(0, fits);
 
   return result;
 };
