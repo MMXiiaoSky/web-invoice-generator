@@ -127,66 +127,6 @@ const pageWouldOverflow = async (invoiceData, templateData, config) => {
   }
 };
 
-const ITEMS_TOLERANCE_PX = 2;
-
-const measureItemsFit = async (
-  invoiceData,
-  templateData,
-  items,
-  startIndex,
-  { hideTotals = false, hideRemarks = false } = {}
-) => {
-  const { host, root, preview } = await mountInvoicePage(invoiceData, templateData, {
-    items,
-    startIndex,
-    hideTotals,
-    hideRemarks
-  });
-
-  try {
-    const wrapper = preview?.querySelector('[data-element-type="itemsTable"]');
-
-    if (!wrapper) {
-      return items.length;
-    }
-
-    const table = wrapper.querySelector('table');
-
-    if (!table) {
-      return items.length;
-    }
-
-    const availableHeight = wrapper.clientHeight || wrapper.getBoundingClientRect().height;
-
-    if (!availableHeight) {
-      return items.length;
-    }
-
-    const header = table.tHead;
-    let consumedHeight = header ? header.getBoundingClientRect().height : 0;
-
-    const body = table.tBodies && table.tBodies[0];
-    const rows = body ? Array.from(body.rows) : [];
-
-    let fitCount = 0;
-
-    for (const row of rows) {
-      const rowHeight = row.getBoundingClientRect().height;
-
-      if (consumedHeight + rowHeight <= availableHeight + ITEMS_TOLERANCE_PX) {
-        consumedHeight += rowHeight;
-        fitCount += 1;
-      } else {
-        break;
-      }
-    }
-
-    return fitCount;
-  } finally {
-    disposeHiddenHost(host, root);
-  }
-};
-
 const paginateInvoice = async (invoiceData, templateData) => {
   if (!templateData || !templateData.elements) {
     const items = Array.isArray(invoiceData.items) ? invoiceData.items : [];
@@ -217,84 +157,126 @@ const paginateInvoice = async (invoiceData, templateData) => {
   let startIndex = 0;
   let remaining = items.slice();
 
-  while (remaining.length > 0) {
-    const fitWithoutTotals = await measureItemsFit(
-      invoiceData,
-      templateData,
-      remaining,
-      startIndex,
-      { hideTotals: true, hideRemarks: true }
-    );
+  const packPage = async (availableItems, indexOffset) => {
+    let bestCount = 0;
+    let bestHideTotals = true;
+    let bestHideRemarks = true;
 
-    let itemsToTake = Math.max(1, Math.min(remaining.length, fitWithoutTotals || 0));
-    let hideTotals = true;
-    let hideRemarks = true;
-
-    if (remaining.length <= itemsToTake) {
-      const fitWithTotals = await measureItemsFit(
-        invoiceData,
-        templateData,
-        remaining,
-        startIndex,
-        { hideTotals: false, hideRemarks: false }
-      );
-
-      const normalizedFitWithTotals = Math.max(
-        1,
-        Math.min(remaining.length, fitWithTotals || 0)
-      );
-
-      if (remaining.length <= normalizedFitWithTotals) {
-        itemsToTake = remaining.length;
-        hideTotals = false;
-        hideRemarks = false;
-      } else {
-        itemsToTake = Math.max(1, Math.min(itemsToTake, normalizedFitWithTotals));
-      }
-    }
-
-    while (itemsToTake > 0) {
-      const subset = remaining.slice(0, itemsToTake);
-      const overflow = await pageWouldOverflow(invoiceData, templateData, {
+    for (let candidate = 1; candidate <= availableItems.length; candidate += 1) {
+      const subset = availableItems.slice(0, candidate);
+      const isFinalCandidate = candidate === availableItems.length;
+      const config = {
         items: subset,
-        startIndex,
-        hideTotals,
-        hideRemarks
-      });
+        startIndex: indexOffset,
+        hideTotals: !isFinalCandidate,
+        hideRemarks: !isFinalCandidate
+      };
 
-      if (!overflow) {
+      const overflow = await pageWouldOverflow(invoiceData, templateData, config);
+
+      if (overflow) {
         break;
       }
 
-      itemsToTake -= 1;
+      bestCount = candidate;
+      bestHideTotals = config.hideTotals;
+      bestHideRemarks = config.hideRemarks;
     }
 
-    if (itemsToTake === 0) {
-      itemsToTake = 1;
+    if (bestCount === 0) {
+      const fallbackSubset = availableItems.slice(0, 1);
+      const canShowTotals =
+        availableItems.length === 1 &&
+        !(await pageWouldOverflow(invoiceData, templateData, {
+          items: fallbackSubset,
+          startIndex: indexOffset,
+          hideTotals: false,
+          hideRemarks: false
+        }));
+
+      bestCount = 1;
+      bestHideTotals = !canShowTotals;
+      bestHideRemarks = !canShowTotals;
     }
 
-    if (!hideTotals && itemsToTake < remaining.length) {
-      hideTotals = true;
-      hideRemarks = true;
-    }
+    return {
+      taken: availableItems.slice(0, bestCount),
+      hideTotals: bestHideTotals,
+      hideRemarks: bestHideRemarks
+    };
+  };
 
-    const pageItems = remaining.slice(0, itemsToTake);
+  while (remaining.length > 0) {
+    const { taken, hideTotals, hideRemarks } = await packPage(remaining, startIndex);
 
     pages.push({
-      items: pageItems,
+      items: taken,
       startIndex,
       hideTotals,
       hideRemarks
     });
 
-    remaining = remaining.slice(itemsToTake);
-    startIndex += itemsToTake;
+    remaining = remaining.slice(taken.length);
+    startIndex += taken.length;
   }
 
   if (pages.length > 0) {
-    const finalPage = pages[pages.length - 1];
-    finalPage.hideTotals = false;
-    finalPage.hideRemarks = false;
+    let finalPage = pages[pages.length - 1];
+
+    while (finalPage && finalPage.hideTotals) {
+      const overflow = await pageWouldOverflow(invoiceData, templateData, {
+        items: finalPage.items,
+        startIndex: finalPage.startIndex,
+        hideTotals: false,
+        hideRemarks: false
+      });
+
+      if (!overflow) {
+        finalPage.hideTotals = false;
+        finalPage.hideRemarks = false;
+        break;
+      }
+
+      if (finalPage.items.length === 0) {
+        finalPage.hideTotals = false;
+        finalPage.hideRemarks = false;
+        break;
+      }
+
+      if (finalPage.items.length <= 1) {
+        break;
+      }
+
+      const movedItem = finalPage.items.pop();
+      const emptyAfterPop = finalPage.items.length === 0;
+      const baseStartIndex = finalPage.startIndex;
+      const newStartIndex = baseStartIndex + finalPage.items.length;
+
+      if (emptyAfterPop) {
+        pages.pop();
+      }
+
+      pages.push({
+        items: [movedItem],
+        startIndex: newStartIndex,
+        hideTotals: true,
+        hideRemarks: true
+      });
+
+      finalPage = pages[pages.length - 1];
+    }
+
+    if (pages[pages.length - 1].hideTotals) {
+      const lastPage = pages[pages.length - 1];
+      const totalsPageStartIndex = lastPage.startIndex + lastPage.items.length;
+
+      pages.push({
+        items: [],
+        startIndex: totalsPageStartIndex,
+        hideTotals: false,
+        hideRemarks: false
+      });
+    }
   }
 
   return pages;
