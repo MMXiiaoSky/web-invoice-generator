@@ -11,6 +11,7 @@ const userRoutes = require('./routes/users');
 const customerRoutes = require('./routes/customers');
 const itemRoutes = require('./routes/items');
 const invoiceRoutes = require('./routes/invoices');
+const quotationRoutes = require('./routes/quotations');
 const templateRoutes = require('./routes/templates');
 const uploadRoutes = require('./routes/uploads');
 
@@ -34,6 +35,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/quotations', quotationRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/uploads', uploadRoutes);
 

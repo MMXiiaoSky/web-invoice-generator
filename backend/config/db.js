@@ -92,6 +92,26 @@ const initializeDatabase = () => {
         FOREIGN KEY (template_id) REFERENCES templates(id),
         FOREIGN KEY (user_id) REFERENCES users(id)
       )
+    `);
+
+    // Create Quotations table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS quotations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        quotation_number TEXT UNIQUE NOT NULL,
+        customer_id INTEGER,
+        template_id INTEGER,
+        items TEXT NOT NULL,
+        subtotal REAL NOT NULL,
+        tax REAL DEFAULT 0,
+        total REAL NOT NULL,
+        quotation_date DATE NOT NULL,
+        user_id INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES customers(id),
+        FOREIGN KEY (template_id) REFERENCES templates(id),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      )
     `, seedDatabase);
   });
 };

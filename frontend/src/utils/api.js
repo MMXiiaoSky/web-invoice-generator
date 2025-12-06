@@ -68,6 +68,15 @@ export const invoicesAPI = {
   delete: (id) => api.delete(`/invoices/${id}`)
 };
 
+// Quotations API
+export const quotationsAPI = {
+  getAll: () => api.get('/quotations'),
+  getById: (id) => api.get(`/quotations/${id}`),
+  create: (quotationData) => api.post('/quotations', quotationData),
+  update: (id, quotationData) => api.put(`/quotations/${id}`, quotationData),
+  delete: (id) => api.delete(`/quotations/${id}`)
+};
+
 // Templates API
 export const templatesAPI = {
   getAll: () => api.get('/templates'),

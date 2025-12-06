@@ -11,6 +11,9 @@ import Dashboard from './pages/Dashboard';
 import InvoiceList from './pages/InvoiceList';
 import InvoiceCreate from './pages/InvoiceCreate';
 import InvoiceView from './pages/InvoiceView';
+import QuotationList from './pages/QuotationList';
+import QuotationCreate from './pages/QuotationCreate';
+import QuotationView from './pages/QuotationView';
 import CustomerList from './pages/CustomerList';
 import ItemList from './pages/ItemList';
 import TemplateBuilder from './pages/TemplateBuilder';
@@ -31,6 +34,9 @@ function App() {
           <Route path="/invoices" element={<PrivateRoute><InvoiceList /></PrivateRoute>} />
           <Route path="/invoices/create" element={<PrivateRoute><InvoiceCreate /></PrivateRoute>} />
           <Route path="/invoices/:id" element={<PrivateRoute><InvoiceView /></PrivateRoute>} />
+          <Route path="/quotations" element={<PrivateRoute><QuotationList /></PrivateRoute>} />
+          <Route path="/quotations/create" element={<PrivateRoute><QuotationCreate /></PrivateRoute>} />
+          <Route path="/quotations/:id" element={<PrivateRoute><QuotationView /></PrivateRoute>} />
           <Route path="/customers" element={<PrivateRoute><CustomerList /></PrivateRoute>} />
           <Route path="/items" element={<PrivateRoute><ItemList /></PrivateRoute>} />
           <Route path="/templates" element={<PrivateRoute><TemplateList /></PrivateRoute>} />
