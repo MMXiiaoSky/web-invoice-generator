@@ -43,23 +43,32 @@ exports.createUser = (req, res) => {
 // Update user (Admin only)
 exports.updateUser = (req, res) => {
   const { id } = req.params;
-  const { name, email, role } = req.body;
+  const { name, email, role, password } = req.body;
 
-  db.run(
-    'UPDATE users SET name = ?, email = ?, role = ? WHERE id = ?',
-    [name, email, role, id],
-    function(err) {
-      if (err) {
-        return res.status(500).json({ message: 'Error updating user', error: err.message });
-      }
+  const fields = ['name = ?', 'email = ?', 'role = ?'];
+  const values = [name, email, role];
 
-      if (this.changes === 0) {
-        return res.status(404).json({ message: 'User not found' });
-      }
+  if (password) {
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    fields.push('password = ?');
+    values.push(hashedPassword);
+  }
 
-      res.json({ message: 'User updated successfully' });
+  values.push(id);
+
+  const query = `UPDATE users SET ${fields.join(', ')} WHERE id = ?`;
+
+  db.run(query, values, function(err) {
+    if (err) {
+      return res.status(500).json({ message: 'Error updating user', error: err.message });
     }
-  );
+
+    if (this.changes === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({ message: 'User updated successfully' });
+  });
 };
 
 // Delete user (Admin only)

@@ -64,14 +64,9 @@ const Login = () => {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-        
+
         <div className="auth-footer">
           <p>Don't have an account? <Link to="/register">Register here</Link></p>
-          <div className="demo-credentials">
-            <strong>Demo Credentials:</strong><br/>
-            Admin: admin@invoice.com / admin123<br/>
-            User: user@invoice.com / user123
-          </div>
         </div>
       </div>
     </div>
