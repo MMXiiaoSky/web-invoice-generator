@@ -21,6 +21,12 @@ const Sidebar = () => {
         <NavLink to="/invoices/create" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
           ➕ Create Invoice
         </NavLink>
+        <NavLink to="/quotations" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+          🧾 Quotations
+        </NavLink>
+        <NavLink to="/quotations/create" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+          ➕ Create Quotation
+        </NavLink>
         <NavLink to="/customers" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
           👥 Customers
         </NavLink>

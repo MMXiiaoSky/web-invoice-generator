@@ -24,6 +24,10 @@ const InvoicePage = ({
     return `${day}/${month}/${year}`;
   };
 
+  const documentNumber = invoice.invoice_number || invoice.quotation_number || '';
+  const documentDate = invoice.invoice_date || invoice.quotation_date;
+  const documentLabel = invoice.quotation_number ? 'Quotation' : 'Invoice';
+
   const renderElementContent = (element) => {
     switch (element.type) {
       case 'text':
@@ -38,8 +42,8 @@ const InvoicePage = ({
           '{address}': invoice.address || '',
           '{attention}': invoice.attention || '',
           '{telephone}': invoice.telephone || '',
-          '{invoice_number}': invoice.invoice_number || '',
-          '{invoice_date}': formatDate(invoice.invoice_date),
+          '{invoice_number}': documentNumber,
+          '{invoice_date}': documentDate ? formatDate(documentDate) : '',
           '{subtotal}': formatCurrency(invoice.subtotal),
           '{total}': formatCurrency(invoice.total)
         };
@@ -71,8 +75,8 @@ const InvoicePage = ({
       case 'invoiceInfo':
         return (
           <div>
-            <strong>Invoice No.:</strong> {invoice.invoice_number}<br />
-            <strong>Date:</strong> {formatDate(invoice.invoice_date)}
+            <strong>{documentLabel} No.:</strong> {documentNumber}<br />
+            <strong>Date:</strong> {documentDate ? formatDate(documentDate) : ''}
           </div>
         );
 
