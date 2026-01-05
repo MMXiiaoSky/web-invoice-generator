@@ -89,6 +89,9 @@ const InvoiceView = () => {
           <button onClick={handleDownloadPDF} className="btn btn-primary">
             📥 Download PDF
           </button>
+          <button onClick={() => navigate(`/invoices/edit/${id}`)} className="btn btn-secondary">
+            ✏️ Edit Invoice
+          </button>
           <button onClick={() => navigate('/invoices')} className="btn btn-secondary">
             ← Back to List
           </button>

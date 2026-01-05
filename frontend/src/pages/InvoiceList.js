@@ -133,6 +133,9 @@ const InvoiceList = () => {
                       <Link to={`/invoices/${invoice.id}`} className="btn btn-secondary btn-small">
                         View
                       </Link>
+                      <Link to={`/invoices/edit/${invoice.id}`} className="btn btn-primary btn-small">
+                        Edit
+                      </Link>
                       <button
                         onClick={() => handleDelete(invoice.id)}
                         className="btn btn-danger btn-small"

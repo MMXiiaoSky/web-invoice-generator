@@ -34,6 +34,23 @@ const TemplateList = () => {
     }
   };
 
+  const handleDuplicate = async (template) => {
+    try {
+      const response = await templatesAPI.create({
+        name: `${template.name} (Copy)`,
+        template_data: template.template_data
+      });
+      await fetchTemplates();
+      alert('Template duplicated successfully');
+      if (response.data?.templateId) {
+        navigate(`/templates/builder/${response.data.templateId}`);
+      }
+    } catch (error) {
+      console.error('Error duplicating template:', error);
+      alert('Error duplicating template');
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading templates...</div>;
   }
@@ -74,6 +91,12 @@ const TemplateList = () => {
                   >
                     Edit
                   </Link>
+                  <button
+                    onClick={() => handleDuplicate(template)}
+                    className="btn btn-primary btn-small"
+                  >
+                    Duplicate
+                  </button>
                   <button
                     onClick={() => handleDelete(template.id)}
                     className="btn btn-danger btn-small"

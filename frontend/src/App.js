@@ -33,6 +33,7 @@ function App() {
           <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/invoices" element={<PrivateRoute><InvoiceList /></PrivateRoute>} />
           <Route path="/invoices/create" element={<PrivateRoute><InvoiceCreate /></PrivateRoute>} />
+          <Route path="/invoices/edit/:id" element={<PrivateRoute><InvoiceCreate /></PrivateRoute>} />
           <Route path="/invoices/:id" element={<PrivateRoute><InvoiceView /></PrivateRoute>} />
           <Route path="/quotations" element={<PrivateRoute><QuotationList /></PrivateRoute>} />
           <Route path="/quotations/create" element={<PrivateRoute><QuotationCreate /></PrivateRoute>} />

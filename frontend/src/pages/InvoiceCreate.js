@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { invoicesAPI, customersAPI, itemsAPI, templatesAPI } from '../utils/api';
 import './InvoiceCreate.css';
 
 const InvoiceCreate = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditMode = Boolean(id);
   const [customers, setCustomers] = useState([]);
   const [items, setItems] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [formData, setFormData] = useState({
     customer_id: '',
     template_id: '',
-    invoice_date: new Date().toISOString().split('T')[0]
+    invoice_date: new Date().toISOString().split('T')[0],
+    status: 'unpaid'
   });
   const [selectedItems, setSelectedItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(isEditMode);
   
   // Custom item form
   const [showCustomItemForm, setShowCustomItemForm] = useState(false);
@@ -25,8 +29,14 @@ const InvoiceCreate = () => {
   });
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const loadData = async () => {
+      await fetchData();
+      if (isEditMode) {
+        await fetchInvoice();
+      }
+    };
+    loadData();
+  }, [isEditMode]);
 
   const fetchData = async () => {
     try {
@@ -40,6 +50,37 @@ const InvoiceCreate = () => {
       setTemplates(templatesRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
+    }
+  };
+
+  const fetchInvoice = async () => {
+    try {
+      const response = await invoicesAPI.getById(id);
+      const invoice = response.data;
+      setFormData({
+        customer_id: invoice.customer_id || '',
+        template_id: invoice.template_id || '',
+        invoice_date: invoice.invoice_date || new Date().toISOString().split('T')[0],
+        status: invoice.status || 'unpaid'
+      });
+      const mappedItems = (invoice.items || []).map((item) => {
+        const unitPrice = Number(item.unit_price) || 0;
+        const quantity = Number(item.quantity) || 1;
+        const total = Number(item.total) || unitPrice * quantity;
+        return {
+          ...item,
+          unit_price: unitPrice,
+          quantity,
+          total
+        };
+      });
+      setSelectedItems(mappedItems);
+    } catch (error) {
+      console.error('Error fetching invoice:', error);
+      alert('Error loading invoice');
+      navigate('/invoices');
+    } finally {
+      setInitialLoading(false);
     }
   };
 
@@ -112,16 +153,24 @@ const InvoiceCreate = () => {
     const total = calculateTotal();
 
     try {
-      await invoicesAPI.create({
+      const payload = {
         ...formData,
         items: selectedItems,
         subtotal: total,
         total: total
-      });
-      alert('Invoice created successfully!');
-      navigate('/invoices');
+      };
+
+      if (isEditMode) {
+        await invoicesAPI.update(id, payload);
+        alert('Invoice updated successfully!');
+        navigate(`/invoices/${id}`);
+      } else {
+        await invoicesAPI.create(payload);
+        alert('Invoice created successfully!');
+        navigate('/invoices');
+      }
     } catch (error) {
-      alert('Error creating invoice');
+      alert(`Error ${isEditMode ? 'updating' : 'creating'} invoice`);
     } finally {
       setLoading(false);
     }
@@ -129,10 +178,14 @@ const InvoiceCreate = () => {
 
   const total = calculateTotal();
 
+  if (initialLoading) {
+    return <div className="loading">Loading invoice...</div>;
+  }
+
   return (
     <div>
       <div className="page-header">
-        <h1>Create Invoice</h1>
+        <h1>{isEditMode ? 'Edit Invoice' : 'Create Invoice'}</h1>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -180,6 +233,20 @@ const InvoiceCreate = () => {
                 required
               />
             </div>
+
+            {isEditMode && (
+              <div className="form-group">
+                <label>Status *</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  required
+                >
+                  <option value="paid">Paid</option>
+                  <option value="unpaid">Unpaid</option>
+                </select>
+              </div>
+            )}
           </div>
         </div>
 
@@ -345,7 +412,7 @@ const InvoiceCreate = () => {
             Cancel
           </button>
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'Creating...' : 'Create Invoice'}
+            {loading ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update Invoice' : 'Create Invoice')}
           </button>
         </div>
       </form>
