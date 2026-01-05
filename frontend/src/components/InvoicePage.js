@@ -27,6 +27,16 @@ const InvoicePage = ({
   const documentNumber = invoice.invoice_number || invoice.quotation_number || '';
   const documentDate = invoice.invoice_date || invoice.quotation_date;
   const documentLabel = invoice.quotation_number ? 'Quotation' : 'Invoice';
+  const formatMultilineHTML = (value) => (value || '').replace(/\r?\n/g, '<br />');
+  const renderMultilineText = (value) => {
+    const lines = (value || '').split(/\r?\n/);
+    return lines.map((line, index) => (
+      <React.Fragment key={`line-${index}`}>
+        {line}
+        {index < lines.length - 1 ? <br /> : null}
+      </React.Fragment>
+    ));
+  };
 
   const renderElementContent = (element) => {
     switch (element.type) {
@@ -39,7 +49,7 @@ const InvoicePage = ({
           (element.type === 'text' ? 'Text' : 'Remarks');
         const placeholderData = {
           '{company_name}': invoice.company_name || '',
-          '{address}': invoice.address || '',
+          '{address}': formatMultilineHTML(invoice.address),
           '{attention}': invoice.attention || '',
           '{telephone}': invoice.telephone || '',
           '{invoice_number}': documentNumber,
@@ -66,7 +76,8 @@ const InvoicePage = ({
           <div>
             <strong>Bill To:</strong><br />
             <strong>{invoice.company_name}</strong><br />
-            {invoice.address}<br /><br />
+            {renderMultilineText(invoice.address)}
+            <br /><br />
             Attn: {invoice.attention}<br />
             Tel: {invoice.telephone}
           </div>
